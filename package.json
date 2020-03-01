@@ -1,0 +1,31 @@
+{
+  "name": "@rsksmart/rif-marketplace",
+  "version": "1.0.0",
+  "description": "RIF Marketplace",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rsksmart"
+  },
+  "keywords": [
+    "rsk",
+    "rif",
+    "marketplace"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.4",
+    "chai": "^4.2.0",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.20.1",
+    "truffle": "^5.1.15"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^2.5.0"
+  }
+}
