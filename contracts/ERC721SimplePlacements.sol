@@ -2,7 +2,7 @@ pragma solidity ^0.5.0;
 
 import "@rsksmart/erc677/contracts/IERC677.sol";
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
-import "@openzeppelin/contracts/token/erc721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/GSN/Context.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
