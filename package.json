@@ -4,7 +4,8 @@
   "description": "RIF Marketplace",
   "main": "index.js",
   "scripts": {
-    "test": "npx truffle test"
+    "test": "npx truffle test",
+    "lint": "npx eslint ./test"
   },
   "repository": {
     "type": "git",
@@ -26,6 +27,8 @@
     "truffle": "^5.1.15"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^2.5.0"
+    "@openzeppelin/contracts": "^2.5.0",
+    "@rsksmart/erc677": "^1.0.1",
+    "solidity-bytes-utils": "0.0.8"
   }
 }
