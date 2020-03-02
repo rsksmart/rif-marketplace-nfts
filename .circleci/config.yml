@@ -1,0 +1,24 @@
+version: 2.1
+jobs:
+  build:
+    working_directory: ~/tpm
+
+    docker:
+      - image: circleci/node:12
+
+    steps:
+      - checkout
+
+      - run:
+          name: install
+          command: |
+                    cd ~/tpm/
+                    npm install
+      - run:
+          name: test
+          command: |
+                    npm test
+      - run:
+          name: lint
+          command: |
+                    npm run lint
