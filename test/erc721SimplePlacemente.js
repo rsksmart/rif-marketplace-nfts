@@ -18,7 +18,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       web3.utils.toBN('1000000000000000000000'),
       'RIF',
       'RIF',
-      web3.utils.toBN('18')
+      web3.utils.toBN('18'),
     );
 
     const bytesLib = await BytesLib.new();
@@ -33,7 +33,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.placement(notPlaced),
-        'Token not placed.'
+        'Token not placed.',
       );
     });
 
@@ -47,7 +47,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.placement(defaultToken),
-        'Token not placed.'
+        'Token not placed.',
       );
     });
 
@@ -63,7 +63,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.placement(defaultToken),
-        'Token not placed.'
+        'Token not placed.',
       );
     });
 
@@ -75,9 +75,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       await this.simplePlacements.place(defaultToken, cost);
 
       expect(
-        await this.simplePlacements.placement(defaultToken)
+        await this.simplePlacements.placement(defaultToken),
       ).to.be.bignumber.equal(
-        cost
+        cost,
       );
     });
 
@@ -91,9 +91,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       await this.simplePlacements.place(defaultToken, cost, { from: accounts[2] });
 
       expect(
-        await this.simplePlacements.placement(defaultToken)
+        await this.simplePlacements.placement(defaultToken),
       ).to.be.bignumber.equal(
-        cost
+        cost,
       );
     });
 
@@ -131,7 +131,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.placement(defaultToken),
-        'Token not placed.'
+        'Token not placed.',
       );
     });
 
@@ -148,7 +148,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.placement(defaultToken),
-        'Token not placed.'
+        'Token not placed.',
       );
     });
   });
@@ -193,9 +193,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         const receipt = await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
 
         expect(
-          await this.token.ownerOf(defaultToken)
+          await this.token.ownerOf(defaultToken),
         ).to.be.eq(
-          accounts[1]
+          accounts[1],
         );
 
         await expectEvent(
@@ -209,17 +209,22 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         await expectRevert(
           this.simplePlacements.placement(defaultToken),
-          'Token not placed.'
+          'Token not placed.',
         );
       });
 
       it('erc677 transferAndCall', async () => {
-        const receipt = await this.rif.transferAndCall(this.simplePlacements.address, cost, defaultToken, { from: accounts[1] });
+        await this.rif.transferAndCall(
+          this.simplePlacements.address,
+          cost,
+          defaultToken,
+          { from: accounts[1] },
+        );
 
         expect(
-          await this.token.ownerOf(defaultToken)
+          await this.token.ownerOf(defaultToken),
         ).to.be.eq(
-          accounts[1]
+          accounts[1],
         );
 
         const logs = await this.simplePlacements.getPastEvents('allEvents');
@@ -235,7 +240,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         await expectRevert(
           this.simplePlacements.placement(defaultToken),
-          'Token not placed.'
+          'Token not placed.',
         );
       });
     });
@@ -256,9 +261,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
 
         expect(
-          await this.token.ownerOf(defaultToken)
+          await this.token.ownerOf(defaultToken),
         ).to.be.eq(
-          accounts[0]
+          accounts[0],
         );
       });
 
@@ -269,9 +274,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
 
         expect(
-          await this.token.ownerOf(defaultToken)
+          await this.token.ownerOf(defaultToken),
         ).to.be.eq(
-          accounts[0]
+          accounts[0],
         );
       });
     });
