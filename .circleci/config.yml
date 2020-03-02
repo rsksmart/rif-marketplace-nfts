@@ -1,8 +1,6 @@
 version: 2.1
 jobs:
   build:
-    working_directory: ~/tpm
-
     docker:
       - image: circleci/node:12
 
@@ -12,7 +10,6 @@ jobs:
       - run:
           name: install
           command: |
-                    cd ~/tpm/
                     npm install
       - run:
           name: test
