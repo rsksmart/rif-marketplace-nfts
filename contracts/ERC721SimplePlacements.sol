@@ -1,13 +1,13 @@
 pragma solidity ^0.5.0;
 
-import "@rsksmart/erc677/contracts/IERC677.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/GSN/Context.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
 contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
-    IERC677 bill;
+    IERC20 bill;
     IERC721 token;
 
     using BytesLib for bytes;
@@ -16,7 +16,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
 
     event UpdatePlacement(uint256 indexed tokenId, uint256 cost);
 
-    constructor(IERC677 _bill, IERC721 _token) public {
+    constructor(IERC20 _bill, IERC721 _token) public {
         bill = _bill;
         token = _token;
     }

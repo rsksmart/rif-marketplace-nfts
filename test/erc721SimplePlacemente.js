@@ -1,25 +1,22 @@
 const BytesLib = artifacts.require('BytesLib');
 const ERC721Mintable = artifacts.require('ERC721Mintable');
+const ERC20Mintable = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC721SimplePlacements = artifacts.require('ERC721SimplePlacements');
 
 const { expect } = require('chai');
 const { expectRevert, expectEvent, constants } = require('@openzeppelin/test-helpers');
 
-contract('ERC721 Simple Placements', (accounts) => {
+const testIf = (condition, ...itArgs) => condition ? it.only(...itArgs) : it(...itArgs);
+
+const test = (isERC677, accounts, billTokenFactoryFunction) => {
   const defaultToken = web3.utils.sha3('DEFAULT_TOKEN');
 
   beforeEach(async () => {
     this.token = await ERC721Mintable.new();
     await this.token.mint(accounts[0], defaultToken);
 
-    this.billToken = await ERC677.new(
-      accounts[1],
-      web3.utils.toBN('1000000000000000000000'),
-      'RIF',
-      'RIF',
-      web3.utils.toBN('18'),
-    );
+    this.billToken = await billTokenFactoryFunction();
 
     const bytesLib = await BytesLib.new();
     await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
@@ -27,7 +24,7 @@ contract('ERC721 Simple Placements', (accounts) => {
     this.simplePlacements = await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
   });
 
-  describe('placing', async () => {
+  describe.only('placing', async () => {
     it('should revert when there is no placement for a token', async () => {
       const notPlaced = web3.utils.sha3('NOT_PLACED');
 
@@ -117,7 +114,7 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
   });
 
-  describe('unplacing', async () => {
+  describe.only('unplacing', async () => {
     it('should allow anyone to unplace not approved tokens', async () => {
       await this.token.approve(this.simplePlacements.address, defaultToken);
 
@@ -161,7 +158,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         await this.token.mint(accounts[0], notPlaced);
       });
 
-      it('erc20 approve + transfer', async () => {
+      it.only('erc20 approve + transfer', async () => {
         await this.billToken.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
         await expectRevert(
@@ -170,7 +167,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
       });
 
-      it('erc677 transferAndCall', async () => {
+      testIf(isERC677, 'erc677 transferAndCall', async () => {
         await expectRevert(
           this.billToken.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), notPlaced, { from: accounts[1] }),
           'Token not placed.',
@@ -187,7 +184,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         await this.simplePlacements.place(defaultToken, cost);
       });
 
-      it('erc20 approve + transfer', async () => {
+      it.only('erc20 approve + transfer', async () => {
         await this.billToken.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
         const receipt = await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
@@ -213,7 +210,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
       });
 
-      it('erc677 transferAndCall', async () => {
+      testIf(isERC677, 'erc677 transferAndCall', async () => {
         await this.billToken.transferAndCall(
           this.simplePlacements.address,
           cost,
@@ -252,7 +249,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         await this.simplePlacements.place(defaultToken, web3.utils.toBN('2000000000000000000'));
       });
 
-      it('erc20 approve + transfer', async () => {
+      it.only('erc20 approve + transfer', async () => {
         await this.billToken.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
         await expectRevert(
@@ -267,7 +264,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
       });
 
-      it('erc677 transferAndCall', async () => {
+      testIf(isERC677, 'erc677 transferAndCall', async () => {
         await expectRevert(
           this.billToken.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
@@ -282,10 +279,34 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
   });
 
-  it('should only allow bill to execute tokeFallback', async () => {
-    await expectRevert(
-      this.simplePlacements.tokenFallback(accounts[1], web3.utils.toBN('1000000000000000000'), defaultToken),
-      'Invalid token.',
-    );
+  describe('only erc-677', async () => {
+    testIf(isERC677, 'should only allow bill to execute tokeFallback', async () => {
+      await expectRevert(
+        this.simplePlacements.tokenFallback(accounts[1], web3.utils.toBN('1000000000000000000'), defaultToken),
+        'Invalid token.',
+      );
+    });
   });
+};
+
+contract('ERC721 Simple Placements', (accounts) => {
+  const billTokenFactoryFunction = async () => {
+    const billToken = await ERC20Mintable.new();
+    await billToken.mint(accounts[1], web3.utils.toBN('1000000000000000000000'));
+    return billToken;
+  };
+
+  test(false, accounts, billTokenFactoryFunction);
+});
+
+contract('ERC721 Simple Placements with ERC-677 payments', (accounts) => {
+  const billTokenFactoryFunction = async () => await ERC677.new(
+    accounts[1],
+    web3.utils.toBN('1000000000000000000000'),
+    'RIF',
+    'RIF',
+    web3.utils.toBN('18'),
+  );
+
+  test(true, accounts, billTokenFactoryFunction);
 });
