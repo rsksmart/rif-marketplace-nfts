@@ -3,6 +3,7 @@ const ERC721Mintable = artifacts.require('ERC721Mintable');
 const ERC20Mintable = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC721SimplePlacements = artifacts.require('ERC721SimplePlacements');
+const ERC721SimplePlacementsWithERC677 = artifacts.require('ERC721SimplePlacementsWithERC677');
 
 const { expect } = require('chai');
 const { expectRevert, expectEvent, constants } = require('@openzeppelin/test-helpers');
@@ -21,7 +22,9 @@ const test = (isERC677, accounts, billTokenFactoryFunction) => {
     const bytesLib = await BytesLib.new();
     await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
 
-    this.simplePlacements = await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
+    this.simplePlacements = isERC677 ?
+      await ERC721SimplePlacementsWithERC677.new(this.billToken.address, this.token.address) :
+      await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
   });
 
   describe.only('placing', async () => {
