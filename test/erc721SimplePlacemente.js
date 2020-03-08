@@ -13,7 +13,7 @@ contract('ERC721 Simple Placements', (accounts) => {
     this.token = await ERC721Mintable.new();
     await this.token.mint(accounts[0], defaultToken);
 
-    this.rif = await ERC677.new(
+    this.billToken = await ERC677.new(
       accounts[1],
       web3.utils.toBN('1000000000000000000000'),
       'RIF',
@@ -24,7 +24,7 @@ contract('ERC721 Simple Placements', (accounts) => {
     const bytesLib = await BytesLib.new();
     await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
 
-    this.simplePlacements = await ERC721SimplePlacements.new(this.rif.address, this.token.address);
+    this.simplePlacements = await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
   });
 
   describe('placing', async () => {
@@ -162,7 +162,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + transfer', async () => {
-        await this.rif.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+        await this.billToken.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
         await expectRevert(
           this.simplePlacements.buy(notPlaced, { from: accounts[1] }),
@@ -172,13 +172,13 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       it('erc677 transferAndCall', async () => {
         await expectRevert(
-          this.rif.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), notPlaced, { from: accounts[1] }),
+          this.billToken.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), notPlaced, { from: accounts[1] }),
           'Token not placed.',
         );
       });
     });
 
-    describe('should transfer placed token when rif are sent via + emit PlacementUpdated to 0 + remove placement', async () => {
+    describe('should transfer placed token when bills are sent via + emit PlacementUpdated to 0 + remove placement', async () => {
       const cost = web3.utils.toBN('1000000000000000000');
 
       beforeEach(async () => {
@@ -188,7 +188,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + transfer', async () => {
-        await this.rif.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+        await this.billToken.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
         const receipt = await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
 
@@ -214,7 +214,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.rif.transferAndCall(
+        await this.billToken.transferAndCall(
           this.simplePlacements.address,
           cost,
           defaultToken,
@@ -245,7 +245,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
     });
 
-    describe('should not transfer placed token when not enough rif are sent via', async () => {
+    describe('should not transfer placed token when not enough bills are sent via', async () => {
       beforeEach(async () => {
         await this.token.approve(this.simplePlacements.address, defaultToken);
 
@@ -253,7 +253,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + transfer', async () => {
-        await this.rif.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+        await this.billToken.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
         await expectRevert(
           this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
@@ -269,7 +269,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       it('erc677 transferAndCall', async () => {
         await expectRevert(
-          this.rif.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+          this.billToken.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
         );
 
@@ -282,10 +282,10 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
   });
 
-  it('should only allow rif to execute tokeFallback', async () => {
+  it('should only allow bill to execute tokeFallback', async () => {
     await expectRevert(
       this.simplePlacements.tokenFallback(accounts[1], web3.utils.toBN('1000000000000000000'), defaultToken),
-      'Only RIF token.',
+      'Invalid token.',
     );
   });
 });

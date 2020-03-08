@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/GSN/Context.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
 contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
-    IERC677 rif;
+    IERC677 bill;
     IERC721 token;
 
     using BytesLib for bytes;
@@ -16,8 +16,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
 
     event UpdatePlacement(uint256 indexed tokenId, uint256 cost);
 
-    constructor(IERC677 _rif, IERC721 _token) public {
-        rif = _rif;
+    constructor(IERC677 _bill, IERC721 _token) public {
+        bill = _bill;
         token = _token;
     }
 
@@ -48,23 +48,23 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
         uint256 cost = _placement(tokenId);
 
         require(
-            rif.transferFrom(_msgSender(), owner, cost),
-            "RIF transfer error."
+            bill.transferFrom(_msgSender(), owner, cost),
+            "Transfer error."
         );
 
         _afterBuyTransfer(owner, _msgSender(), tokenId);
     }
 
     function tokenFallback(address from, uint256 amount, bytes calldata data) external returns (bool) {
-        require(_msgSender() == address(rif), "Only RIF token.");
+        require(_msgSender() == address(bill), "Invalid token.");
 
         uint256 tokenId = data.toUint(0);
         address owner = token.ownerOf(tokenId);
         uint256 cost = _placement(tokenId);
 
         require(
-            rif.transfer(owner, cost),
-            "RIF transfer error."
+            bill.transfer(owner, cost),
+            "Transfer error."
         );
 
         _afterBuyTransfer(owner, from, tokenId);
