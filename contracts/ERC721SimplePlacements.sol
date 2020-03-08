@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/GSN/Context.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
 contract ERC721SimplePlacements is Context  {
-    IERC20 bill;
-    IERC721 token;
+    IERC20 public bill;
+    IERC721 public token;
 
     using BytesLib for bytes;
 

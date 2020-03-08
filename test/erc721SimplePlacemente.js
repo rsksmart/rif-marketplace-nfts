@@ -290,6 +290,20 @@ const test = (isERC677, accounts, billTokenFactoryFunction) => {
       );
     });
   });
+
+  describe.only('exposes info', async () => {
+    it('should expose bill token, accepted token for payments', async () => {
+      const bill = await this.simplePlacements.bill();
+
+      expect(bill).to.be.eq(this.billToken.address);
+    });
+
+    it('should expose token address', async () => {
+      const token = await this.simplePlacements.token();
+
+      expect(token).to.be.eq(this.token.address);
+    });
+  });
 };
 
 contract('ERC721 Simple Placements', (accounts) => {
