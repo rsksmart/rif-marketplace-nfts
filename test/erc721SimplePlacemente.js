@@ -8,7 +8,7 @@ const ERC721SimplePlacementsWithERC677 = artifacts.require('ERC721SimplePlacemen
 const { expect } = require('chai');
 const { expectRevert, expectEvent, constants } = require('@openzeppelin/test-helpers');
 
-const testIf = (condition, ...itArgs) => condition ? it.only(...itArgs) : it(...itArgs);
+const testIf = (condition, ...itArgs) => (condition ? it.only(...itArgs) : it(...itArgs));
 
 const test = (isERC677, accounts, billTokenFactoryFunction) => {
   const defaultToken = web3.utils.sha3('DEFAULT_TOKEN');
@@ -22,9 +22,9 @@ const test = (isERC677, accounts, billTokenFactoryFunction) => {
     const bytesLib = await BytesLib.new();
     await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
 
-    this.simplePlacements = isERC677 ?
-      await ERC721SimplePlacementsWithERC677.new(this.billToken.address, this.token.address) :
-      await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
+    this.simplePlacements = isERC677
+      ? await ERC721SimplePlacementsWithERC677.new(this.billToken.address, this.token.address)
+      : await ERC721SimplePlacements.new(this.billToken.address, this.token.address);
   });
 
   describe.only('placing', async () => {
@@ -317,7 +317,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 });
 
 contract('ERC721 Simple Placements with ERC-677 payments', (accounts) => {
-  const billTokenFactoryFunction = async () => await ERC677.new(
+  const billTokenFactoryFunction = () => ERC677.new(
     accounts[1],
     web3.utils.toBN('1000000000000000000000'),
     'RIF',
