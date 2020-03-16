@@ -31,6 +31,16 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
 
     mapping (uint256 => Placement) private _placements;
 
+    modifier onlyWhitelistedPaymentTokens(address paymentToken) {
+        require(
+            _whitelistedERC20[paymentToken] ||
+            _whitelistedERC677[paymentToken] ||
+            _whitelistedERC777[paymentToken],
+            "Payment token not allowed."
+        );
+        _;
+    }
+
     constructor(IERC721 _token) public {
         token = _token;
     }
@@ -39,7 +49,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
     // Tokens whitelisting //
     /////////////////////////
 
-    function setWhitelisted(address paymentToken, bool isERC20, bool isERC677, bool isERC777) public onlyOwner {
+    function setWhitelistedPaymentToken(address paymentToken, bool isERC20, bool isERC677, bool isERC777) public onlyOwner {
         _whitelistedERC20[paymentToken] = isERC20;
         _whitelistedERC677[paymentToken] = isERC677;
         _whitelistedERC777[paymentToken] = isERC777;
@@ -47,7 +57,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
         emit PaymentTokenWhitelistChanged(paymentToken, isERC20, isERC677, isERC777);
     }
 
-    function whitelisted(address paymentToken) public view returns (bool, bool, bool) {
+    function whitelistedPaymentToken(address paymentToken) public view returns (bool, bool, bool) {
         return (
             _whitelistedERC20[paymentToken],
             _whitelistedERC677[paymentToken],
@@ -59,7 +69,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
     // Placing //
     /////////////
 
-    function place(uint256 tokenId, address paymentToken, uint256 cost) external {
+    function place(uint256 tokenId, address paymentToken, uint256 cost) external onlyWhitelistedPaymentTokens(paymentToken) {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
 
         address tokenOwner = token.ownerOf(tokenId);
