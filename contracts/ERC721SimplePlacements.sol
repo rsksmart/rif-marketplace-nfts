@@ -4,22 +4,52 @@ import "@rsksmart/erc677/contracts/IERC677.sol";
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/GSN/Context.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
-contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
+contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
     IERC677 rif;
     IERC721 token;
 
     using BytesLib for bytes;
 
-    mapping (uint256 => uint256) private _placements;
-
+    event PaymentTokenWhitelistChanged(address indexed paymentToken, bool isERC20, bool isERC677, bool isERC777);
     event UpdatePlacement(uint256 indexed tokenId, uint256 cost);
+
+    mapping (address => bool) private _whitelistedERC20;
+    mapping (address => bool) private _whitelistedERC677;
+    mapping (address => bool) private _whitelistedERC777;
+
+    mapping (uint256 => uint256) private _placements;
 
     constructor(IERC677 _rif, IERC721 _token) public {
         rif = _rif;
         token = _token;
     }
+
+    /////////////////////////
+    // Tokens whitelisting //
+    /////////////////////////
+
+    function setWhitelisted(address paymentToken, bool isERC20, bool isERC677, bool isERC777) public onlyOwner {
+        _whitelistedERC20[paymentToken] = isERC20;
+        _whitelistedERC677[paymentToken] = isERC677;
+        _whitelistedERC777[paymentToken] = isERC777;
+
+        emit PaymentTokenWhitelistChanged(paymentToken, isERC20, isERC677, isERC777);
+    }
+
+    function whitelisted(address paymentToken) public view returns (bool, bool, bool) {
+        return (
+            _whitelistedERC20[paymentToken],
+            _whitelistedERC677[paymentToken],
+            _whitelistedERC777[paymentToken]
+        );
+    }
+
+    /////////////
+    // Placing //
+    /////////////
 
     function place(uint256 tokenId, uint256 cost) external {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
@@ -43,6 +73,11 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
         _setPlacement(tokenId, 0);
     }
 
+    ////////////
+    // Buying //
+    ////////////
+
+    // With ERC-20
     function buy(uint256 tokenId) external {
         address owner = token.ownerOf(tokenId);
         uint256 cost = _placement(tokenId);
@@ -55,6 +90,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
         _afterBuyTransfer(owner, _msgSender(), tokenId);
     }
 
+    // With ERC-677
     function tokenFallback(address from, uint256 amount, bytes calldata data) external returns (bool) {
         require(_msgSender() == address(rif), "Only RIF token.");
 
@@ -69,6 +105,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver  {
 
         _afterBuyTransfer(owner, from, tokenId);
     }
+
+    // With ERC-777
 
     function _placement(uint256 tokenId) private view returns(uint256) {
         require(_placements[tokenId] > 0, "Token not placed.");

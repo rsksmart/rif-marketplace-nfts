@@ -1,5 +1,6 @@
 const BytesLib = artifacts.require('BytesLib');
 const ERC721Mintable = artifacts.require('ERC721Mintable');
+const ERC20Mintable = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC721SimplePlacements = artifacts.require('ERC721SimplePlacements');
 
@@ -25,6 +26,87 @@ contract('ERC721 Simple Placements', (accounts) => {
     await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
 
     this.simplePlacements = await ERC721SimplePlacements.new(this.rif.address, this.token.address);
+  });
+
+  describe('ownership', async () => {
+    it('creator should be the owner', async () => {
+      const owner = await this.simplePlacements.owner();
+
+      expect(
+        owner,
+      ).to.eq(
+        accounts[0],
+      );
+    });
+
+    it('should not allow not owner to set new owner', async () => {
+      await expectRevert(
+        this.simplePlacements.transferOwnership(accounts[1], { from: accounts[1]  }),
+        "Ownable: caller is not the owner",
+      );
+    });
+
+    it('should allow owner to set new owner', async () => {
+      await this.simplePlacements.transferOwnership(accounts[1]);
+
+      const owner = await this.simplePlacements.owner();
+
+      expect(
+        owner,
+      ).to.eq(
+        accounts[1],
+      );
+    });
+  });
+
+  describe('whitelisting', async () => {
+    it('should not allow not owner to set whitelisted token', async () => {
+      const token = await ERC20Mintable.new({ from: accounts[1] });
+
+      await expectRevert(
+        this.simplePlacements.setWhitelisted(token.address, true, false, false, { from: accounts[1] }),
+        "Ownable: caller is not the owner",
+      );
+    });
+
+    it('should allow owner to set whitelisted token', async () => {
+      await this.simplePlacements.setWhitelisted(this.rif.address, true, true, false);
+
+      const whitelisted = await this.simplePlacements.whitelisted(this.rif.address);
+
+      expect(whitelisted[0]).to.eq(true);
+      expect(whitelisted[1]).to.eq(true);
+      expect(whitelisted[2]).to.eq(false);
+    });
+
+    it('should allow owner to remove whitelisted tokens', async () => {
+      await this.simplePlacements.setWhitelisted(this.rif.address, true, true, false);
+
+      await this.simplePlacements.setWhitelisted(this.rif.address, false, false, false);
+
+      const whitelisted = await this.simplePlacements.whitelisted(this.rif.address);
+
+      expect(whitelisted[0]).to.eq(false);
+      expect(whitelisted[1]).to.eq(false);
+      expect(whitelisted[2]).to.eq(false);
+    });
+
+    it('should emit PaymentTokenWhitelisted event', async () => {
+      await this.simplePlacements.setWhitelisted(this.rif.address, true, true, false);
+
+      const logs = await this.simplePlacements.getPastEvents('allEvents');
+
+      await expectEvent.inLogs(
+        logs,
+        'PaymentTokenWhitelistChanged',
+        {
+          paymentToken: this.rif.address,
+          isERC20: true,
+          isERC677: true,
+          isERC777: false,
+        },
+      );
+    });
   });
 
   describe('placing', async () => {
