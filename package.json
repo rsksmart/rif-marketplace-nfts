@@ -1,7 +1,7 @@
 {
-  "name": "@rsksmart/rif-marketplace",
+  "name": "@rsksmart/rif-marketplace-nfts",
   "version": "1.0.0",
-  "description": "RIF Marketplace",
+  "description": "RIF NFTs marketplace.",
   "main": "index.js",
   "scripts": {
     "test": "npx truffle test",
@@ -9,15 +9,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rsksmart"
+    "url": "git+https://github.com/rsksmart/rif-marketplace-poc.git"
   },
-  "keywords": [
-    "rsk",
-    "rif",
-    "marketplace"
-  ],
   "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rsksmart/rif-marketplace-poc/issues"
+  },
+  "homepage": "https://github.com/rsksmart/rif-marketplace-poc#readme",
   "devDependencies": {
     "@openzeppelin/test-helpers": "0.5.4",
     "chai": "^4.2.0",
