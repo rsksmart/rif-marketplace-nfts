@@ -270,6 +270,43 @@ contract('ERC721 Simple Placements', (accounts) => {
   });
 
   describe('buying', async () => {
+    describe('it should require specific whitelisting for purchase execution', async () => {
+      const cost = web3.utils.toBN('1000000000000000000');
+
+      beforeEach(async () => {
+        await this.token.approve(this.simplePlacements.address, defaultToken);
+      });
+
+      it('erc20', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+
+        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+
+        await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+
+        await expectRevert(
+          this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+          'Wrong purchase method.',
+        );
+      });
+
+      it('erc677', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+
+        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+
+        await expectRevert(
+          this.erc677.transferAndCall(
+            this.simplePlacements.address,
+            cost,
+            defaultToken,
+            { from: accounts[1] },
+          ),
+          'Wrong purchase method.',
+        );
+      });
+    });
+
     describe('it should not allow to buy not placed token via', async () => {
       const notPlaced = web3.utils.sha3('NOT_PLACED');
 

@@ -102,6 +102,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
 
         address owner = token.ownerOf(tokenId);
 
+        require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
+
         require(
             IERC20(_placement.paymentToken).transferFrom(_msgSender(), owner, _placement.cost),
             "Payment token transfer error."
@@ -116,7 +118,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
 
         Placement memory _placement = _getPlacement(tokenId);
 
-        require(_msgSender() == _placement.paymentToken, "Only from payment token.");
+        require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
+        require(msg.sender == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
