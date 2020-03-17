@@ -1,6 +1,7 @@
 const BytesLib = artifacts.require('BytesLib');
 const ERC721Mintable = artifacts.require('ERC721Mintable');
 const ERC1820 = require('erc1820');
+
 const ERC20 = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC777 = artifacts.require('ERC777Mintable');
@@ -51,8 +52,8 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should not allow not owner to set new owner', async () => {
       await expectRevert(
-        this.simplePlacements.transferOwnership(accounts[1], { from: accounts[1]  }),
-        "Ownable: caller is not the owner",
+        this.simplePlacements.transferOwnership(accounts[1], { from: accounts[1] }),
+        'Ownable: caller is not the owner',
       );
     });
 
@@ -74,13 +75,17 @@ contract('ERC721 Simple Placements', (accounts) => {
       const token = await ERC20.new({ from: accounts[1] });
 
       await expectRevert(
-        this.simplePlacements.setWhitelistedPaymentToken(token.address, true, false, false, { from: accounts[1] }),
-        "Ownable: caller is not the owner",
+        this.simplePlacements.setWhitelistedPaymentToken(
+          token.address, true, false, false, { from: accounts[1] },
+        ),
+        'Ownable: caller is not the owner',
       );
     });
 
     it('should allow owner to set whitelisted token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, true, true, false,
+      );
 
       const whitelisted = await this.simplePlacements.whitelistedPaymentToken(this.erc677.address);
 
@@ -90,9 +95,13 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should allow owner to remove whitelisted tokens', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, true, true, false,
+      );
 
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, false, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, false, false,
+      );
 
       const whitelisted = await this.simplePlacements.whitelistedPaymentToken(this.erc677.address);
 
@@ -102,7 +111,9 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should emit PaymentTokenWhitelisted event', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, true, true, false,
+      );
 
       const logs = await this.simplePlacements.getPastEvents('allEvents');
 
@@ -136,14 +147,16 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectRevert(
         this.simplePlacements.place(defaultToken, this.erc677.address, cost),
-        'Payment token not allowed.'
+        'Payment token not allowed.',
       );
     });
 
     it('should not allow to place not approved token', async () => {
       const cost = web3.utils.toBN('1000000000000000000');
 
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
       await expectRevert(
         this.simplePlacements.place(defaultToken, this.erc677.address, cost),
@@ -161,7 +174,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       const cost = web3.utils.toBN('1000000000000000000');
 
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
       await expectRevert(
         this.simplePlacements.place(defaultToken, this.erc677.address, cost, { from: accounts[3] }),
@@ -175,9 +190,11 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should allow owner to place token', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
-        await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.simplePlacements.address, defaultToken);
 
       const cost = web3.utils.toBN('1000000000000000000');
 
@@ -190,7 +207,9 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should allow controller to place token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
       await this.token.approve(this.simplePlacements.address, defaultToken);
 
@@ -198,7 +217,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await this.token.setApprovalForAll(accounts[2], true);
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost, { from: accounts[2] });
+      await this.simplePlacements.place(
+        defaultToken, this.erc677.address, cost, { from: accounts[2] },
+      );
 
       const placement = await this.simplePlacements.placement(defaultToken);
 
@@ -207,7 +228,9 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should emit UpdatePlacement event', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
       await this.token.approve(this.simplePlacements.address, defaultToken);
 
@@ -215,7 +238,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await this.token.setApprovalForAll(accounts[2], true);
 
-      const receipt = await this.simplePlacements.place(defaultToken, this.erc677.address, cost, { from: accounts[2] });
+      const receipt = await this.simplePlacements.place(
+        defaultToken, this.erc677.address, cost, { from: accounts[2] },
+      );
 
       await expectEvent(
         receipt,
@@ -231,7 +256,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
   describe('unplacing', async () => {
     beforeEach(async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
     });
 
     it('should allow anyone to unplace not approved tokens', async () => {
@@ -278,7 +305,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, false, true, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc20.address, false, true, false,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
@@ -291,7 +320,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, false, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc677.address, true, false, false,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -307,7 +338,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, true, false, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc777.address, true, false, false,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
 
@@ -324,7 +357,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, false, true);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc677.address, false, false, true,
+          );
         });
 
         it('approve + buy', async () => {
@@ -355,7 +390,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, true, false);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc777.address, false, true, false,
+          );
         });
 
         it('approve + buy', async () => {
@@ -394,7 +431,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc20.address, true, false, false,
+        );
 
         await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
@@ -405,16 +444,22 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc677.address, false, true, false,
+        );
 
         await expectRevert(
-          this.erc677.transferAndCall(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+          this.erc677.transferAndCall(
+            this.simplePlacements.address, cost, notPlaced, { from: accounts[1] },
+          ),
           'Token not placed.',
         );
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc777.address, false, false, true,
+        );
 
         await expectRevert(
           this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
@@ -424,7 +469,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc677.address, true, true, false,
+          );
         });
 
         it('approve + buy', async () => {
@@ -438,7 +485,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         it('transferAndCall', async () => {
           await expectRevert(
-            this.erc677.transferAndCall(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+            this.erc677.transferAndCall(
+              this.simplePlacements.address, cost, notPlaced, { from: accounts[1] },
+            ),
             'Token not placed.',
           );
         });
@@ -446,7 +495,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, true, true);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc777.address, false, true, true,
+          );
         });
 
         it('erc20 approve + transfer', async () => {
@@ -477,7 +528,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         });
 
         it('erc20 approve + buy', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc20.address, true, false, false,
+          );
 
           await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
@@ -487,7 +540,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         });
 
         it('erc677 transferAndCall', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc677.address, false, true, false,
+          );
 
           await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -500,7 +555,9 @@ contract('ERC721 Simple Placements', (accounts) => {
         });
 
         it('erc777 send', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc777.address, false, false, true,
+          );
 
           await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
 
@@ -514,7 +571,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         describe('erc20 + erc677', async () => {
           beforeEach(async () => {
-            await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+            await this.simplePlacements.setWhitelistedPaymentToken(
+              this.erc677.address, true, true, false,
+            );
           });
 
           it('erc20 approve + buy', async () => {
@@ -539,7 +598,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         describe('erc20 + erc777', async () => {
           beforeEach(async () => {
-            await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, true, false, true);
+            await this.simplePlacements.setWhitelistedPaymentToken(
+              this.erc777.address, true, false, true,
+            );
           });
 
           it('erc20 approve + buy', async () => {
@@ -595,7 +656,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc20.address, true, false, false,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
@@ -608,7 +671,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc677.address, false, true, false,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -619,7 +684,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
+        await this.simplePlacements.setWhitelistedPaymentToken(
+          this.erc777.address, false, false, true,
+        );
 
         await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
 
@@ -631,7 +698,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, true, false);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc677.address, true, true, false,
+          );
         });
 
         it('erc20 approve + buy', async () => {
@@ -657,7 +726,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, true, false, true);
+          await this.simplePlacements.setWhitelistedPaymentToken(
+            this.erc777.address, true, false, true,
+          );
         });
 
         it('erc20 approve + buy', async () => {
@@ -695,11 +766,15 @@ contract('ERC721 Simple Placements', (accounts) => {
     const cost = web3.utils.toBN('1000000000000000000');
 
     beforeEach(async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(
+        this.simplePlacements.address, defaultToken,
+      );
     });
 
     it('erc677 tokeFallback', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, true, false,
+      );
 
       await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -710,7 +785,9 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('erc777 tokensReceived', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, false, true);
+      await this.simplePlacements.setWhitelistedPaymentToken(
+        this.erc677.address, false, false, true,
+      );
 
       await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
