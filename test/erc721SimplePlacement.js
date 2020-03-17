@@ -29,7 +29,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       web3.utils.toBN('18'),
     );
 
-    this.erc777 = await ERC777.new('ERC 721', '721', [accounts[1]]);
+    this.erc777 = await ERC777.new('ERC 721', '721', []);
     await this.erc777.mint(accounts[1], web3.utils.toBN('1000000000000000000000'));
 
     const bytesLib = await BytesLib.new();
@@ -270,7 +270,7 @@ contract('ERC721 Simple Placements', (accounts) => {
   });
 
   describe('buying', async () => {
-    describe('it should require specific whitelisting for purchase execution', async () => {
+    describe('should require specific whitelisting for purchase execution', async () => {
       const cost = web3.utils.toBN('1000000000000000000');
 
       beforeEach(async () => {
@@ -278,9 +278,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, false, true, false);
 
-        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
         await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
@@ -291,9 +291,9 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, true, false, false);
 
-        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
         await expectRevert(
           this.erc677.transferAndCall(
@@ -305,20 +305,36 @@ contract('ERC721 Simple Placements', (accounts) => {
           'Wrong purchase method.',
         );
       });
+
+      it('erc777', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, true, false, false);
+
+        await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+
+        await expectRevert(
+          this.erc777.send(
+            this.simplePlacements.address,
+            cost,
+            defaultToken,
+            { from: accounts[1] },
+          ),
+          'Wrong purchase method.',
+        );
+      });
     });
 
-    describe('it should not allow to buy not placed token via', async () => {
+    describe('should not allow to buy not placed token via', async () => {
       const notPlaced = web3.utils.sha3('NOT_PLACED');
+      const cost = web3.utils.toBN('1000000000000000000');
 
       beforeEach(async () => {
         await this.token.mint(accounts[0], notPlaced);
-
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
       });
 
       it('erc20 approve + transfer', async () => {
-        await this.erc677.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+
+        await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
         await expectRevert(
           this.simplePlacements.buy(notPlaced, { from: accounts[1] }),
@@ -327,75 +343,83 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc677 transferAndCall', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+
         await expectRevert(
-          this.erc677.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), notPlaced, { from: accounts[1] }),
+          this.erc677.transferAndCall(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+          'Token not placed.',
+        );
+      });
+
+      it('erc777 send', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
+
+        await expectRevert(
+          this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
           'Token not placed.',
         );
       });
     });
 
-    describe('should transfer placed token when are sent via + emit PlacementUpdated to 0 + remove placement', async () => {
-      const cost = web3.utils.toBN('1000000000000000000');
+    describe(
+      'should transfer placed token when are sent via + emit PlacementUpdated to 0 + remove placement',
+      async () => {
+        const cost = web3.utils.toBN('1000000000000000000');
 
-      beforeEach(async () => {
-        await this.token.approve(this.simplePlacements.address, defaultToken);
+        beforeEach(async () => {
+          await this.token.approve(this.simplePlacements.address, defaultToken);
+        });
 
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
-      });
+        it('erc20 approve + transfer', async () => {
+          await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
 
-      it('erc20 approve + transfer', async () => {
-        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+          await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
-        await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
 
-        const receipt = await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
+          await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
+        });
 
-        expect(
-          await this.token.ownerOf(defaultToken),
-        ).to.be.eq(
-          accounts[1],
-        );
+        it('erc677 transferAndCall', async () => {
+          await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
 
-        await expectEvent(
-          receipt,
-          'UpdatePlacement',
-          {
-            tokenId: web3.utils.toBN(defaultToken),
-            paymentToken: constants.ZERO_ADDRESS,
-            cost: web3.utils.toBN('0'),
-          },
-        );
+          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
-        await expectRevert(
-          this.simplePlacements.placement(defaultToken),
-          'Token not placed.',
-        );
-      });
+          await this.erc677.transferAndCall(
+            this.simplePlacements.address,
+            cost,
+            defaultToken,
+            { from: accounts[1] },
+          );
+        },
+      );
 
-      it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      it('erc777 send', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
 
-        await this.erc677.transferAndCall(
+        await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+
+        await this.erc777.send(
           this.simplePlacements.address,
           cost,
           defaultToken,
           { from: accounts[1] },
         );
+      });
 
+      afterEach(async () => {
         expect(
           await this.token.ownerOf(defaultToken),
         ).to.be.eq(
           accounts[1],
         );
 
-        const logs = await this.simplePlacements.getPastEvents('allEvents');
-
         await expectEvent.inLogs(
-          logs,
+          await this.simplePlacements.getPastEvents('allEvents'),
           'UpdatePlacement',
           {
             tokenId: web3.utils.toBN(defaultToken),
+            paymentToken: constants.ZERO_ADDRESS,
             cost: web3.utils.toBN('0'),
           },
         );
@@ -412,12 +436,11 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       beforeEach(async () => {
         await this.token.approve(this.simplePlacements.address, defaultToken);
-
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
-        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
       });
 
       it('erc20 approve + transfer', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc20.address, true, false, false);
+
         await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
 
         await this.erc677.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
@@ -426,22 +449,31 @@ contract('ERC721 Simple Placements', (accounts) => {
           this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds allowance -- Reason given: ERC20: transfer amount exceeds allowance.',
         );
-
-        expect(
-          await this.token.ownerOf(defaultToken),
-        ).to.be.eq(
-          accounts[0],
-        );
       });
 
       it('erc677 transferAndCall', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+
         await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
         await expectRevert(
           this.erc677.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
         );
+      });
 
+      it('erc777 send', async () => {
+        await this.simplePlacements.setWhitelistedPaymentToken(this.erc777.address, false, false, true);
+
+        await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+
+        await expectRevert(
+          this.erc777.send(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+          'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
+        );
+      });
+
+      afterEach(async () => {
         expect(
           await this.token.ownerOf(defaultToken),
         ).to.be.eq(
@@ -451,18 +483,40 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
   });
 
-  it('should only allow payment token to execute tokeFallback', async () => {
-    await this.token.approve(this.simplePlacements.address, defaultToken);
-
+  describe('should only allow payment token to execute', async () => {
     const cost = web3.utils.toBN('1000000000000000000');
 
-    await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
+    beforeEach(async () => {
+      await this.token.approve(this.simplePlacements.address, defaultToken);
+    });
 
-    await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+    it('erc677 tokeFallback', async () => {
+      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, true, false);
 
-    await expectRevert(
-      this.simplePlacements.tokenFallback(accounts[1], cost, defaultToken),
-      'Only from payment token.',
-    );
+      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+
+      await expectRevert(
+        this.simplePlacements.tokenFallback(accounts[1], cost, defaultToken),
+        'Only from payment token.',
+      );
+    });
+
+    it('erc677 tokensReceived', async () => {
+      await this.simplePlacements.setWhitelistedPaymentToken(this.erc677.address, false, false, true);
+
+      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+
+      await expectRevert(
+        this.simplePlacements.tokensReceived(
+          constants.ZERO_ADDRESS,
+          accounts[1],
+          constants.ZERO_ADDRESS,
+          cost,
+          defaultToken,
+          '0x00',
+        ),
+        'Only from payment token.',
+      );
+    });
   });
 });

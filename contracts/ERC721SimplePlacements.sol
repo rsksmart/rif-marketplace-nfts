@@ -2,17 +2,22 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
+import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
+
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@rsksmart/erc677/contracts/IERC677.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777.sol";
 
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
+import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
 
 import "@openzeppelin/contracts/GSN/Context.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
-contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
+contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recipient, Ownable {
+    IERC1820Registry constant internal ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+
     IERC721 token;
 
     using BytesLib for bytes;
@@ -43,6 +48,9 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
 
     constructor(IERC721 _token) public {
         token = _token;
+        ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777Token"), address(this));
+        ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC20Token"), address(this));
+        ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
     }
 
     /////////////////////////
@@ -113,7 +121,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
     }
 
     // With ERC-677
-    function tokenFallback(address from, uint256 amount, bytes calldata data) external returns (bool) {
+    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external returns (bool) {
         uint256 tokenId = data.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
@@ -132,6 +140,27 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, Ownable {
     }
 
     // With ERC-777
+    function tokensReceived(
+        address /* operator */,
+        address from,
+        address /* to */,
+        uint256 /* amount */,
+        bytes calldata userData,
+        bytes calldata /* operatorData */
+    ) external {
+        uint256 tokenId = userData.toUint(0);
+
+        Placement memory _placement = _getPlacement(tokenId);
+
+        require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
+        require(msg.sender == _placement.paymentToken, "Only from payment token.");
+
+        address owner = token.ownerOf(tokenId);
+
+        IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
+
+        _afterBuyTransfer(owner, from, tokenId);
+    }
 
     function _getPlacement(uint256 tokenId) private view returns(Placement memory _placement) {
         _placement = _placements[tokenId];
