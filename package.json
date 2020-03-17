@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "npx truffle test",
-    "lint": "npx eslint ./test"
+    "lint": "npx eslint ./test",
+    "codechecks": "npx codechecks"
   },
   "repository": {
     "type": "git",
@@ -18,12 +19,14 @@
   },
   "homepage": "https://github.com/rsksmart/rif-marketplace-poc#readme",
   "devDependencies": {
+    "@codechecks/client": "^0.1.10",
     "@openzeppelin/test-helpers": "0.5.4",
     "chai": "^4.2.0",
     "erc1820": "0.0.2",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.20.1",
+    "eth-gas-reporter": "^0.2.15",
     "truffle": "^5.1.15"
   },
   "dependencies": {

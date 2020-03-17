@@ -19,3 +19,7 @@ jobs:
           name: lint
           command: |
                     npm run lint
+      - run:
+          name: codechecks
+          command: |
+                    npm run codechecks
