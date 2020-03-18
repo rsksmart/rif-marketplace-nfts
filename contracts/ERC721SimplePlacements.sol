@@ -34,13 +34,17 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     mapping (address => bool) private _whitelistedERC677;
     mapping (address => bool) private _whitelistedERC777;
 
+    bool public isGasPaymentAllowed;
+
     mapping (uint256 => Placement) private _placements;
 
     modifier onlyWhitelistedPaymentTokens(address paymentToken) {
         require(
-            _whitelistedERC20[paymentToken] ||
-            _whitelistedERC677[paymentToken] ||
-            _whitelistedERC777[paymentToken],
+            paymentToken != address(0) ? (
+                _whitelistedERC20[paymentToken] ||
+                _whitelistedERC677[paymentToken] ||
+                _whitelistedERC777[paymentToken]
+            ) : isGasPaymentAllowed,
             "Payment token not allowed."
         );
         _;
@@ -71,6 +75,10 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
             _whitelistedERC677[paymentToken],
             _whitelistedERC777[paymentToken]
         );
+    }
+
+    function allowGasPayments(bool allowance) public onlyOwner {
+        isGasPaymentAllowed = allowance;
     }
 
     /////////////
@@ -105,17 +113,25 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     ////////////
 
     // With ERC-20
-    function buy(uint256 tokenId) external {
+    function buy(uint256 tokenId) external payable {
         Placement memory _placement = _getPlacement(tokenId);
 
-        address owner = token.ownerOf(tokenId);
+        address payable owner = address(uint160(token.ownerOf(tokenId)));
 
-        require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
+        if(_placement.paymentToken == address(0)) {
+            require(isGasPaymentAllowed, "Wrong purchase method.");
 
-        require(
-            IERC20(_placement.paymentToken).transferFrom(_msgSender(), owner, _placement.cost),
-            "Payment token transfer error."
-        );
+            require(msg.value >= _placement.cost, "Transfer amount is not enough.");
+
+            owner.transfer(_placement.cost);
+        } else {
+            require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
+
+            require(
+                IERC20(_placement.paymentToken).transferFrom(_msgSender(), owner, _placement.cost),
+                "Payment token transfer error."
+            );
+        }
 
         _afterBuyTransfer(owner, _msgSender(), tokenId);
     }
