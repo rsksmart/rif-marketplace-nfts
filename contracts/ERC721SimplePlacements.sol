@@ -28,7 +28,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     }
 
     event PaymentTokenWhitelistChanged(address indexed paymentToken, bool isERC20, bool isERC677, bool isERC777);
-    event UpdatePlacement(uint256 indexed tokenId, address paymentToken, uint256 cost);
+    event UpdatePlacement(uint256 indexed tokenId, address indexed paymentToken, uint256 cost);
 
     mapping (address => bool) private _whitelistedERC20;
     mapping (address => bool) private _whitelistedERC677;
