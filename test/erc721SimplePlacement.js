@@ -94,6 +94,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         'Ownable: caller is not the owner',
       );
 
+      // eslint-disable-next-line no-unused-expressions
       expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
     });
 
@@ -112,8 +113,9 @@ contract('ERC721 Simple Placements', (accounts) => {
     it('should only allow to allow gas payments', async () => {
       await this.simplePlacements.allowGasPayments(true);
 
+      // eslint-disable-next-line no-unused-expressions
       expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.true;
-    })
+    });
 
     it('should allow owner to remove whitelisted tokens', async () => {
       await this.simplePlacements.setWhitelistedPaymentToken(
@@ -136,6 +138,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await this.simplePlacements.allowGasPayments(false);
 
+      // eslint-disable-next-line no-unused-expressions
       expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
     });
 
@@ -187,7 +190,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost),
         'Payment token not allowed.',
       );
-    })
+    });
 
     it('should not allow to place not approved token', async () => {
       await this.simplePlacements.setWhitelistedPaymentToken(
@@ -758,7 +761,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
 
         await expectRevert(
-          this.simplePlacements.buy(defaultToken, { from: accounts[1], value:  web3.utils.toBN('1000000000000000000') }),
+          this.simplePlacements.buy(defaultToken, { from: accounts[1], value: web3.utils.toBN('1000000000000000000') }),
           'Transfer amount is not enough.',
         );
       });
