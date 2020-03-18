@@ -112,7 +112,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     // Buying //
     ////////////
 
-    // With ERC-20
+    // With ERC-20 or gas
     function buy(uint256 tokenId) external payable {
         Placement memory _placement = _getPlacement(tokenId);
 
