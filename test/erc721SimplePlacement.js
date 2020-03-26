@@ -80,6 +80,22 @@ contract('ERC721 Simple Placements', (accounts) => {
         ),
         'Ownable: caller is not the owner',
       );
+
+      const whitelisted = await this.simplePlacements.whitelistedPaymentToken(token.address);
+
+      expect(whitelisted[0]).to.eq(false);
+      expect(whitelisted[1]).to.eq(false);
+      expect(whitelisted[2]).to.eq(false);
+    });
+
+    it('should not allow not owner to allow gas payments', async () => {
+      await expectRevert(
+        this.simplePlacements.allowGasPayments(true, { from: accounts[1] }),
+        'Ownable: caller is not the owner',
+      );
+
+      // eslint-disable-next-line no-unused-expressions
+      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
     });
 
     it('should allow owner to set whitelisted token', async () => {
@@ -92,6 +108,13 @@ contract('ERC721 Simple Placements', (accounts) => {
       expect(whitelisted[0]).to.eq(true);
       expect(whitelisted[1]).to.eq(true);
       expect(whitelisted[2]).to.eq(false);
+    });
+
+    it('should only allow to allow gas payments', async () => {
+      await this.simplePlacements.allowGasPayments(true);
+
+      // eslint-disable-next-line no-unused-expressions
+      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.true;
     });
 
     it('should allow owner to remove whitelisted tokens', async () => {
@@ -108,6 +131,15 @@ contract('ERC721 Simple Placements', (accounts) => {
       expect(whitelisted[0]).to.eq(false);
       expect(whitelisted[1]).to.eq(false);
       expect(whitelisted[2]).to.eq(false);
+    });
+
+    it('should allow owner to remove approval for gas payments', async () => {
+      await this.simplePlacements.allowGasPayments(true);
+
+      await this.simplePlacements.allowGasPayments(false);
+
+      // eslint-disable-next-line no-unused-expressions
+      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
     });
 
     it('should emit PaymentTokenWhitelisted event', async () => {
@@ -131,6 +163,8 @@ contract('ERC721 Simple Placements', (accounts) => {
   });
 
   describe('placing', async () => {
+    const cost = web3.utils.toBN('1000000000000000000');
+
     it('should revert when there is no placement for a token', async () => {
       const notPlaced = web3.utils.sha3('NOT_PLACED');
 
@@ -140,10 +174,8 @@ contract('ERC721 Simple Placements', (accounts) => {
       );
     });
 
-    it('should not allot to place token with not whitelisted payment token', async () => {
+    it('should not allow to place token with not whitelisted payment token', async () => {
       await this.token.approve(this.simplePlacements.address, defaultToken);
-
-      const cost = web3.utils.toBN('1000000000000000000');
 
       await expectRevert(
         this.simplePlacements.place(defaultToken, this.erc677.address, cost),
@@ -151,9 +183,16 @@ contract('ERC721 Simple Placements', (accounts) => {
       );
     });
 
-    it('should not allow to place not approved token', async () => {
-      const cost = web3.utils.toBN('1000000000000000000');
+    it('should not allow to place token for gas if it is not allowed', async () => {
+      await this.token.approve(this.simplePlacements.address, defaultToken);
 
+      await expectRevert(
+        this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost),
+        'Payment token not allowed.',
+      );
+    });
+
+    it('should not allow to place not approved token', async () => {
       await this.simplePlacements.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
@@ -171,8 +210,6 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should not allow not owner or controller to place token', async () => {
       await this.token.approve(this.simplePlacements.address, defaultToken);
-
-      const cost = web3.utils.toBN('1000000000000000000');
 
       await this.simplePlacements.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
@@ -196,8 +233,6 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await this.token.approve(this.simplePlacements.address, defaultToken);
 
-      const cost = web3.utils.toBN('1000000000000000000');
-
       await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
       const placement = await this.simplePlacements.placement(defaultToken);
@@ -212,8 +247,6 @@ contract('ERC721 Simple Placements', (accounts) => {
       );
 
       await this.token.approve(this.simplePlacements.address, defaultToken);
-
-      const cost = web3.utils.toBN('1000000000000000000');
 
       await this.token.setApprovalForAll(accounts[2], true);
 
@@ -234,8 +267,6 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await this.token.approve(this.simplePlacements.address, defaultToken);
 
-      const cost = web3.utils.toBN('1000000000000000000');
-
       await this.token.setApprovalForAll(accounts[2], true);
 
       const receipt = await this.simplePlacements.place(
@@ -255,6 +286,8 @@ contract('ERC721 Simple Placements', (accounts) => {
   });
 
   describe('unplacing', async () => {
+    const cost = web3.utils.toBN('1000000000000000000');
+
     beforeEach(async () => {
       await this.simplePlacements.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
@@ -263,8 +296,6 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should allow anyone to unplace not approved tokens', async () => {
       await this.token.approve(this.simplePlacements.address, defaultToken);
-
-      const cost = web3.utils.toBN('1000000000000000000');
 
       await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -280,8 +311,6 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should allow anyone to unplace transferred tokens', async () => {
       await this.token.approve(this.simplePlacements.address, defaultToken);
-
-      const cost = web3.utils.toBN('1000000000000000000');
 
       await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
 
@@ -351,6 +380,19 @@ contract('ERC721 Simple Placements', (accounts) => {
             defaultToken,
             { from: accounts[1] },
           ),
+          'Wrong purchase method.',
+        );
+      });
+
+      it('gas', async () => {
+        await this.simplePlacements.allowGasPayments(true);
+
+        await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+
+        await this.simplePlacements.allowGasPayments(false);
+
+        await expectRevert(
+          this.simplePlacements.buy(defaultToken, { from: accounts[1], value: cost }),
           'Wrong purchase method.',
         );
       });
@@ -467,6 +509,15 @@ contract('ERC721 Simple Placements', (accounts) => {
         );
       });
 
+      it('gas', async () => {
+        await this.simplePlacements.allowGasPayments(true);
+
+        await expectRevert(
+          this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+          'Token not placed.',
+        );
+      });
+
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
           await this.simplePlacements.setWhitelistedPaymentToken(
@@ -567,6 +618,14 @@ contract('ERC721 Simple Placements', (accounts) => {
             defaultToken,
             { from: accounts[1] },
           );
+        });
+
+        it('gas', async () => {
+          await this.simplePlacements.allowGasPayments(true);
+
+          await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+
+          await this.simplePlacements.buy(defaultToken, { from: accounts[1], value: cost });
         });
 
         describe('erc20 + erc677', async () => {
@@ -693,6 +752,17 @@ contract('ERC721 Simple Placements', (accounts) => {
         await expectRevert(
           this.erc777.send(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
+        );
+      });
+
+      it('gas', async () => {
+        await this.simplePlacements.allowGasPayments(true);
+
+        await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+
+        await expectRevert(
+          this.simplePlacements.buy(defaultToken, { from: accounts[1], value: web3.utils.toBN('1000000000000000000') }),
+          'Transfer amount is not enough.',
         );
       });
 
