@@ -1,8 +1,12 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "RIF NFTs marketplace.",
-  "main": "index.js",
+  "files": [
+    "/contracts",
+    "!/contracts/Migrations.sol",
+    "/types"
+  ],
   "scripts": {
     "test": "npx truffle test",
     "lint": "npx eslint ./test",
@@ -13,6 +17,13 @@
     "type": "git",
     "url": "git+https://github.com/rsksmart/rif-marketplace-poc.git"
   },
+  "keywords": [
+    "rsk",
+    "rif",
+    "marketplace",
+    "nft",
+    "erc721"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {

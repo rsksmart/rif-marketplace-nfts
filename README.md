@@ -1,5 +1,11 @@
 # RIF Marketplace
 
+```
+npm i @rsksmart/rif-marketplace-nfts
+```
+
+## Run locally
+
 Run tests:
 ```
 npm test
@@ -53,6 +59,16 @@ Admin:
   - Set whitelisted tokens and their accepted methods with `setWhitelistedPaymentToken`
   - Change gas payment allowance with `allowGasPayments`
   - Set another owner with `transferOwnership`
+
+## TypeScript typings
+
+There are TypeScript typing definitions of the contracts published together with the original contracts.
+Supported contract's libraries are:
+
+* `web3` version 1.* - `web3-v1-contracts`
+* `web3` version 2.* - `web3-v2-contracts`
+* `truffle` - `truffle-contracts`
+* `ethers` - `ethers-contracts`
 
 ## Troubleshot
 
