@@ -1,5 +1,8 @@
 # RIF Marketplace
 
+[![npm](https://img.shields.io/npm/v/@rsksmart/rif-marketplace-nfts)](https://www.npmjs.com/package/@rsksmart/rif-marketplace-nfts)
+[![CircleCI](https://circleci.com/gh/rsksmart/rif-marketplace-nfts.svg?style=shield)](https://circleci.com/gh/rsksmart/rif-marketplace-nfts)
+
 ```
 npm i @rsksmart/rif-marketplace-nfts
 ```
