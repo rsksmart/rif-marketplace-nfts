@@ -260,7 +260,7 @@ contract('ERC721 Simple Placements', (accounts) => {
       expect(placement[1]).to.be.bignumber.equal(cost);
     });
 
-    it('should emit UpdatePlacement event', async () => {
+    it('should emit TokenPlaced event', async () => {
       await this.simplePlacements.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
@@ -275,7 +275,7 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       await expectEvent(
         receipt,
-        'UpdatePlacement',
+        'TokenPlaced',
         {
           tokenId: web3.utils.toBN(defaultToken),
           paymentToken: this.erc677.address,
@@ -323,6 +323,26 @@ contract('ERC721 Simple Placements', (accounts) => {
         'Token not placed.',
       );
     });
+
+    it('should emit TokenUnplaced event', async () => {
+      
+      await this.token.approve(this.simplePlacements.address, defaultToken);
+
+      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+
+      await this.token.approve(constants.ZERO_ADDRESS, defaultToken);
+
+      const receipt = await this.simplePlacements.unplace(defaultToken);
+
+      await expectEvent(
+        receipt,
+        'TokenUnplaced',
+        {
+          tokenId: web3.utils.toBN(defaultToken)
+        },
+      );
+    });
+
   });
 
   describe('buying', async () => {
@@ -691,11 +711,9 @@ contract('ERC721 Simple Placements', (accounts) => {
 
           await expectEvent.inLogs(
             await this.simplePlacements.getPastEvents('allEvents'),
-            'UpdatePlacement',
+            'TokenSold',
             {
-              tokenId: web3.utils.toBN(defaultToken),
-              paymentToken: constants.ZERO_ADDRESS,
-              cost: web3.utils.toBN('0'),
+              tokenId: web3.utils.toBN(defaultToken)
             },
           );
 
