@@ -1,3 +1,5 @@
 node_modules/
 build/
 types/
+ERC721SimplePlacementsABI.json
+ERC721SimplePlacementsBytecode.json
