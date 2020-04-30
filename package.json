@@ -8,6 +8,7 @@
     "/types",
     "ERC721SimplePlacementsABI.json",
     "ERC721SimplePlacementsBytecode.json",
+    "datagen.js",
     "truffle-config.js"
   ],
   "scripts": {
