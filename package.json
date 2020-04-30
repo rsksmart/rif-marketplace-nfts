@@ -1,16 +1,18 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "RIF NFTs marketplace.",
   "files": [
     "/contracts",
     "!/contracts/Migrations.sol",
-    "/types"
+    "/types",
+    "ERC721SimplePlacementsABI.json",
+    "ERC721SimplePlacementsBytecode.json"
   ],
   "scripts": {
     "test": "npx truffle test",
     "lint": "npx eslint ./test",
-    "prepublish": "npx truffle compile && npm run types-generation",
+    "prepublish": "npx truffle compile && node datagen.js && npm run types-generation",
     "types-generation": "typechain --target=web3-v1 '*Data.json' && typechain --target=web3-v2 '*Data.json' && typechain --target=truffle '*Data.json' && typechain --target=ethers '*Data.json'"
   },
   "repository": {
