@@ -141,8 +141,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         }
 
         _afterBuyTransfer(owner, _msgSender(), tokenId);
-
-        emit TokenSold(tokenId);
     }
 
     // With ERC-677
@@ -162,8 +160,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         );
 
         _afterBuyTransfer(owner, from, tokenId);
-
-        emit TokenSold(tokenId);
     }
 
     // With ERC-777
@@ -187,8 +183,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
 
         _afterBuyTransfer(owner, from, tokenId);
-
-        emit TokenSold(tokenId);
     }
 
     function _getPlacement(uint256 tokenId) private view returns(Placement memory _placement) {
@@ -205,5 +199,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     function _afterBuyTransfer(address owner, address newOwner, uint256 tokenId) private {
         token.transferFrom(owner, newOwner, tokenId);
         _setPlacement(tokenId, address(0), 0);
+        
+        emit TokenSold(tokenId);
     }
 }
