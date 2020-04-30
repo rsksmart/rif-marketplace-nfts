@@ -32,7 +32,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     event TokenUnplaced(uint256 indexed tokenId);
     event TokenSold(uint256 indexed tokenId);
 
-
     mapping (address => bool) private _whitelistedERC20;
     mapping (address => bool) private _whitelistedERC677;
     mapping (address => bool) private _whitelistedERC777;
@@ -91,8 +90,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     function place(uint256 tokenId, address paymentToken, uint256 cost) external onlyWhitelistedPaymentTokens(paymentToken) {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(cost > 0, "Cost should be greater than zero.");
-        
-
+       
         address tokenOwner = token.ownerOf(tokenId);
         require(
             tokenOwner == _msgSender() || token.isApprovedForAll(tokenOwner, _msgSender()),
@@ -145,7 +143,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         _afterBuyTransfer(owner, _msgSender(), tokenId);
 
         emit TokenSold(tokenId);
-    
     }
 
     // With ERC-677
