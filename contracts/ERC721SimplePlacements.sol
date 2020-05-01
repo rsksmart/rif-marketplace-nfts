@@ -28,7 +28,9 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     }
 
     event PaymentTokenWhitelistChanged(address indexed paymentToken, bool isERC20, bool isERC677, bool isERC777);
-    event UpdatePlacement(uint256 indexed tokenId, address indexed paymentToken, uint256 cost);
+    event TokenPlaced(uint256 indexed tokenId, address indexed paymentToken, uint256 cost);
+    event TokenUnplaced(uint256 indexed tokenId);
+    event TokenSold(uint256 indexed tokenId);
 
     mapping (address => bool) private _whitelistedERC20;
     mapping (address => bool) private _whitelistedERC677;
@@ -87,7 +89,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
 
     function place(uint256 tokenId, address paymentToken, uint256 cost) external onlyWhitelistedPaymentTokens(paymentToken) {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
-
+        require(cost > 0, "Cost should be greater than zero.");
+       
         address tokenOwner = token.ownerOf(tokenId);
         require(
             tokenOwner == _msgSender() || token.isApprovedForAll(tokenOwner, _msgSender()),
@@ -95,6 +98,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         );
 
         _setPlacement(tokenId, paymentToken, cost);
+
+        emit TokenPlaced(tokenId, paymentToken, cost);
     }
 
     function placement(uint256 tokenId) external view returns(address, uint256) {
@@ -106,6 +111,8 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         require(!(token.getApproved(tokenId) == address(this)), "Approved to transfer.");
 
         _setPlacement(tokenId, address(0), 0);
+
+        emit TokenUnplaced(tokenId);
     }
 
     ////////////
@@ -184,7 +191,6 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     }
 
     function _setPlacement(uint256 tokenId, address paymentToken, uint256 cost) private {
-        emit UpdatePlacement(tokenId, paymentToken, cost);
         Placement storage _placement = _placements[tokenId];
         _placement.paymentToken = paymentToken;
         _placement.cost = cost;
@@ -193,5 +199,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     function _afterBuyTransfer(address owner, address newOwner, uint256 tokenId) private {
         token.transferFrom(owner, newOwner, tokenId);
         _setPlacement(tokenId, address(0), 0);
+        
+        emit TokenSold(tokenId);
     }
 }
