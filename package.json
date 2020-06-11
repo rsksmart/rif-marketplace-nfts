@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "RIF NFTs marketplace.",
   "files": [
     "/contracts",
@@ -34,12 +34,14 @@
   "homepage": "https://github.com/rsksmart/rif-marketplace-poc#readme",
   "devDependencies": {
     "@openzeppelin/test-helpers": "0.5.4",
+    "@truffle/hdwallet-provider": "^1.0.35",
     "chai": "^4.2.0",
     "erc1820": "0.0.2",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.20.1",
     "eth-gas-reporter": "^0.2.15",
+    "solidity-coverage": "^0.7.7",
     "truffle": "^5.1.15",
     "typechain": "^1.0.5",
     "typechain-target-ethers": "^1.0.4",
@@ -49,6 +51,8 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.0",
+    "@openzeppelin/contracts-ethereum-package": "^2.2.3",
+    "@openzeppelin/upgrades": "^2.8.0",
     "@rsksmart/erc677": "^1.0.1",
     "solidity-bytes-utils": "0.0.8"
   }

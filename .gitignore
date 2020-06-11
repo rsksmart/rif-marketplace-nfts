@@ -1,5 +1,12 @@
 node_modules/
 build/
 types/
+coverage/
+coverage.json
 ERC721SimplePlacementsABI.json
 ERC721SimplePlacementsBytecode.json
+ProxyAdminABI.json
+ProxyAdminBytecode.json
+ProxyFactoryABI.json
+ProxyFactoryBytecode.json
+.secret

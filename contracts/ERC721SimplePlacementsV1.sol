@@ -1,24 +1,28 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.11;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@rsksmart/erc677/contracts/IERC677.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777.sol";
-
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
 
-import "@openzeppelin/contracts/GSN/Context.sol";
-import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
+import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recipient, Ownable {
+
+ /**
+ * @title ERC721SimplePlacementsV1
+ * @dev An NFTS Exchange contract to buy and sell tokens on multiple currencies.
+ * This can be implemented using an openzeppelin/upgrades v2.8 proxy contract.
+ */
+contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC777Recipient, Ownable {
     IERC1820Registry constant internal ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
 
-    IERC721 token;
+    IERC721 public token;
 
     using BytesLib for bytes;
 
@@ -52,11 +56,12 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         _;
     }
 
-    constructor(IERC721 _token) public {
+    function initialize(IERC721 _token, address sender) external initializer {
         token = _token;
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC20Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
+        Ownable.initialize(sender);
     }
 
     /////////////////////////

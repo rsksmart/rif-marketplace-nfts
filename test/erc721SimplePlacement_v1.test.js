@@ -5,12 +5,19 @@ const ERC1820 = require('erc1820');
 const ERC20 = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC777 = artifacts.require('ERC777Mintable');
-const ERC721SimplePlacements = artifacts.require('ERC721SimplePlacements');
+
+const ERC721SimplePlacementsV1 = artifacts.require('ERC721SimplePlacementsV1');
 
 const { expect } = require('chai');
 const { expectRevert, expectEvent, constants } = require('@openzeppelin/test-helpers');
 
-contract('ERC721 Simple Placements', (accounts) => {
+const { encodeCall } = require('@openzeppelin/upgrades');
+
+const ProxyFactory = artifacts.require('ProxyFactory');
+const ProxyAdmin = artifacts.require('ProxyAdmin');
+const DummyVersion = artifacts.require('DummyVersion');
+
+contract('ERC721 Simple Placements V1', (accounts) => {
   const defaultToken = web3.utils.sha3('DEFAULT_TOKEN');
 
   beforeEach(async () => {
@@ -34,14 +41,81 @@ contract('ERC721 Simple Placements', (accounts) => {
     await this.erc777.mint(accounts[1], web3.utils.toBN('1000000000000000000000'));
 
     const bytesLib = await BytesLib.new();
-    await ERC721SimplePlacements.link('BytesLib', bytesLib.address);
+    await ERC721SimplePlacementsV1.link('BytesLib', bytesLib.address);
 
-    this.simplePlacements = await ERC721SimplePlacements.new(this.token.address);
+    this.proxyFactory = await ProxyFactory.new();
+    this.proxyAdmin = await ProxyAdmin.new();
+    this.simplePlacementsV1 = await ERC721SimplePlacementsV1.new();
+
+    const salt = '16';
+    const data = encodeCall('initialize', ['address', 'address'], [this.token.address, accounts[0]]);
+    await this.proxyFactory.deploy(salt,
+      this.simplePlacementsV1.address,
+      this.proxyAdmin.address,
+      data);
+
+    this.simplePlacementsAddress = await this.proxyFactory.getDeploymentAddress(salt, accounts[0]);
+    this.proxy = await ERC721SimplePlacementsV1.at(this.simplePlacementsAddress);
+  });
+
+
+  describe('upgrades', async () => {
+    it('should use given implementation', async () => {
+      const implAddr = await this.proxyAdmin.getProxyImplementation(this.simplePlacementsAddress);
+
+      expect(implAddr).to.eq(this.simplePlacementsV1.address);
+    });
+
+    it('should not allow not owner to upgrade', async () => {
+      const dummyVersion = await DummyVersion.new();
+
+      const data = encodeCall('initialize', ['address', 'uint'], [this.token.address, 10]);
+      await expectRevert.unspecified(
+        this.proxyAdmin.upgradeAndCall(
+          this.simplePlacementsAddress,
+          dummyVersion.address,
+          data,
+          { from: accounts[1] },
+        ),
+      );
+
+      const implAddr = await this.proxyAdmin.getProxyImplementation(this.simplePlacementsAddress);
+
+      expect(implAddr).to.eq(this.simplePlacementsV1.address);
+    });
+
+    it('should allow owner to upgrade', async () => {
+      await this.proxy.methods['allowGasPayments(bool)'](false, { from: accounts[0] });
+
+      const dummyVersion = await DummyVersion.new();
+
+      await this.proxyAdmin.upgradeAndCall(this.simplePlacementsAddress, dummyVersion.address, encodeCall('initialize', [], []));
+
+      const implAddr = await this.proxyAdmin.getProxyImplementation(this.simplePlacementsAddress);
+      expect(implAddr).to.eq(dummyVersion.address);
+
+      const proxy = await DummyVersion.at(this.simplePlacementsAddress);
+
+      const newV = web3.utils.toBN('10');
+      await proxy.setV(newV);
+      const v = await proxy.v();
+      expect(v).to.be.bignumber.eq(newV);
+
+      expect(await proxy.isGasPaymentAllowed()).to.eq(false);
+    });
+  });
+
+  describe('initialize', async () => {
+    it('should store token address', async () => {
+      const nftToken = await this.proxy.token();
+
+      expect(nftToken).to.eq(this.token.address);
+    });
   });
 
   describe('ownership', async () => {
     it('creator should be the owner', async () => {
-      const owner = await this.simplePlacements.owner();
+      const owner = await this.proxy.owner();
 
       expect(
         owner,
@@ -52,15 +126,15 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should not allow not owner to set new owner', async () => {
       await expectRevert(
-        this.simplePlacements.transferOwnership(accounts[1], { from: accounts[1] }),
+        this.proxy.transferOwnership(accounts[1], { from: accounts[1] }),
         'Ownable: caller is not the owner',
       );
     });
 
     it('should allow owner to set new owner', async () => {
-      await this.simplePlacements.transferOwnership(accounts[1]);
+      await this.proxy.transferOwnership(accounts[1]);
 
-      const owner = await this.simplePlacements.owner();
+      const owner = await this.proxy.owner();
 
       expect(
         owner,
@@ -75,13 +149,13 @@ contract('ERC721 Simple Placements', (accounts) => {
       const token = await ERC20.new({ from: accounts[1] });
 
       await expectRevert(
-        this.simplePlacements.setWhitelistedPaymentToken(
+        this.proxy.setWhitelistedPaymentToken(
           token.address, true, false, false, { from: accounts[1] },
         ),
         'Ownable: caller is not the owner',
       );
 
-      const whitelisted = await this.simplePlacements.whitelistedPaymentToken(token.address);
+      const whitelisted = await this.proxy.whitelistedPaymentToken(token.address);
 
       expect(whitelisted[0]).to.eq(false);
       expect(whitelisted[1]).to.eq(false);
@@ -90,20 +164,20 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     it('should not allow not owner to allow gas payments', async () => {
       await expectRevert(
-        this.simplePlacements.allowGasPayments(true, { from: accounts[1] }),
+        this.proxy.allowGasPayments(true, { from: accounts[1] }),
         'Ownable: caller is not the owner',
       );
 
       // eslint-disable-next-line no-unused-expressions
-      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
+      expect(await this.proxy.isGasPaymentAllowed()).to.be.false;
     });
 
     it('should allow owner to set whitelisted token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, true, true, false,
       );
 
-      const whitelisted = await this.simplePlacements.whitelistedPaymentToken(this.erc677.address);
+      const whitelisted = await this.proxy.whitelistedPaymentToken(this.erc677.address);
 
       expect(whitelisted[0]).to.eq(true);
       expect(whitelisted[1]).to.eq(true);
@@ -111,22 +185,22 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should only allow to allow gas payments', async () => {
-      await this.simplePlacements.allowGasPayments(true);
+      await this.proxy.allowGasPayments(true);
 
       // eslint-disable-next-line no-unused-expressions
-      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.true;
+      expect(await this.proxy.isGasPaymentAllowed()).to.be.true;
     });
 
     it('should allow owner to remove whitelisted tokens', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, true, true, false,
       );
 
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, false, false,
       );
 
-      const whitelisted = await this.simplePlacements.whitelistedPaymentToken(this.erc677.address);
+      const whitelisted = await this.proxy.whitelistedPaymentToken(this.erc677.address);
 
       expect(whitelisted[0]).to.eq(false);
       expect(whitelisted[1]).to.eq(false);
@@ -134,20 +208,20 @@ contract('ERC721 Simple Placements', (accounts) => {
     });
 
     it('should allow owner to remove approval for gas payments', async () => {
-      await this.simplePlacements.allowGasPayments(true);
+      await this.proxy.allowGasPayments(true);
 
-      await this.simplePlacements.allowGasPayments(false);
+      await this.proxy.allowGasPayments(false);
 
       // eslint-disable-next-line no-unused-expressions
-      expect(await this.simplePlacements.isGasPaymentAllowed()).to.be.false;
+      expect(await this.proxy.isGasPaymentAllowed()).to.be.false;
     });
 
     it('should emit PaymentTokenWhitelisted event', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, true, true, false,
       );
 
-      const logs = await this.simplePlacements.getPastEvents('allEvents');
+      const logs = await this.proxy.getPastEvents('allEvents');
 
       await expectEvent.inLogs(
         logs,
@@ -169,125 +243,125 @@ contract('ERC721 Simple Placements', (accounts) => {
       const notPlaced = web3.utils.sha3('NOT_PLACED');
 
       await expectRevert(
-        this.simplePlacements.placement(notPlaced),
+        this.proxy.placement(notPlaced),
         'Token not placed.',
       );
     });
 
     it('should not allow to place token with not whitelisted payment token', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
       await expectRevert(
-        this.simplePlacements.place(defaultToken, this.erc677.address, cost),
+        this.proxy.place(defaultToken, this.erc677.address, cost),
         'Payment token not allowed.',
       );
     });
 
     it('should not allow to place token for gas if it is not allowed', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
       await expectRevert(
-        this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost),
+        this.proxy.place(defaultToken, constants.ZERO_ADDRESS, cost),
         'Payment token not allowed.',
       );
     });
 
     it('should not allow to place not approved token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
       await expectRevert(
-        this.simplePlacements.place(defaultToken, this.erc677.address, cost),
+        this.proxy.place(defaultToken, this.erc677.address, cost),
         'Not approved to transfer.',
       );
 
       await expectRevert(
-        this.simplePlacements.placement(defaultToken),
+        this.proxy.placement(defaultToken),
         'Token not placed.',
       );
     });
 
     it('should not allow not owner or controller to place token', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
       await expectRevert(
-        this.simplePlacements.place(defaultToken, this.erc677.address, cost, { from: accounts[3] }),
+        this.proxy.place(defaultToken, this.erc677.address, cost, { from: accounts[3] }),
         'Not approved or owner.',
       );
 
       await expectRevert(
-        this.simplePlacements.placement(defaultToken),
+        this.proxy.placement(defaultToken),
         'Token not placed.',
       );
     });
 
     it('should not allow to place with zero cost', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
       await expectRevert(
-        this.simplePlacements.place(defaultToken, this.erc677.address, 0),
+        this.proxy.place(defaultToken, this.erc677.address, 0),
         'Cost should be greater than zero.',
       );
 
       await expectRevert(
-        this.simplePlacements.placement(defaultToken),
+        this.proxy.placement(defaultToken),
         'Token not placed.',
       );
     });
 
     it('should allow owner to place token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
-      const placement = await this.simplePlacements.placement(defaultToken);
+      const placement = await this.proxy.placement(defaultToken);
 
       expect(placement[0]).to.eq(this.erc677.address);
       expect(placement[1]).to.be.bignumber.equal(cost);
     });
 
     it('should allow controller to place token', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
       await this.token.setApprovalForAll(accounts[2], true);
 
-      await this.simplePlacements.place(
+      await this.proxy.place(
         defaultToken, this.erc677.address, cost, { from: accounts[2] },
       );
 
-      const placement = await this.simplePlacements.placement(defaultToken);
+      const placement = await this.proxy.placement(defaultToken);
 
       expect(placement[0]).to.eq(this.erc677.address);
       expect(placement[1]).to.be.bignumber.equal(cost);
     });
 
     it('should emit TokenPlaced event', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
       await this.token.setApprovalForAll(accounts[2], true);
 
-      const receipt = await this.simplePlacements.place(
+      const receipt = await this.proxy.place(
         defaultToken, this.erc677.address, cost, { from: accounts[2] },
       );
 
@@ -307,49 +381,49 @@ contract('ERC721 Simple Placements', (accounts) => {
     const cost = web3.utils.toBN('1000000000000000000');
 
     beforeEach(async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
     });
 
     it('should allow anyone to unplace not approved tokens', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
       await this.token.approve(constants.ZERO_ADDRESS, defaultToken);
 
-      await this.simplePlacements.unplace(defaultToken);
+      await this.proxy.unplace(defaultToken);
 
       await expectRevert(
-        this.simplePlacements.placement(defaultToken),
+        this.proxy.placement(defaultToken),
         'Token not placed.',
       );
     });
 
     it('should allow anyone to unplace transferred tokens', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
       await this.token.transferFrom(accounts[0], accounts[2], defaultToken);
 
-      await this.simplePlacements.unplace(defaultToken);
+      await this.proxy.unplace(defaultToken);
 
       await expectRevert(
-        this.simplePlacements.placement(defaultToken),
+        this.proxy.placement(defaultToken),
         'Token not placed.',
       );
     });
 
     it('should emit TokenUnplaced event', async () => {
-      await this.token.approve(this.simplePlacements.address, defaultToken);
+      await this.token.approve(this.proxy.address, defaultToken);
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
       await this.token.approve(constants.ZERO_ADDRESS, defaultToken);
 
-      const receipt = await this.simplePlacements.unplace(defaultToken);
+      const receipt = await this.proxy.unplace(defaultToken);
 
       await expectEvent(
         receipt,
@@ -366,34 +440,34 @@ contract('ERC721 Simple Placements', (accounts) => {
       const cost = web3.utils.toBN('1000000000000000000');
 
       beforeEach(async () => {
-        await this.token.approve(this.simplePlacements.address, defaultToken);
+        await this.token.approve(this.proxy.address, defaultToken);
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc20.address, false, true, false,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+        await this.proxy.place(defaultToken, this.erc20.address, cost);
 
-        await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+        await this.erc20.approve(this.proxy.address, cost, { from: accounts[1] });
 
         await expectRevert(
-          this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+          this.proxy.buy(defaultToken, { from: accounts[1] }),
           'Wrong purchase method.',
         );
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc677.address, true, false, false,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+        await this.proxy.place(defaultToken, this.erc677.address, cost);
 
         await expectRevert(
           this.erc677.transferAndCall(
-            this.simplePlacements.address,
+            this.proxy.address,
             cost,
             defaultToken,
             { from: accounts[1] },
@@ -403,15 +477,15 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc777.address, true, false, false,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+        await this.proxy.place(defaultToken, this.erc777.address, cost);
 
         await expectRevert(
           this.erc777.send(
-            this.simplePlacements.address,
+            this.proxy.address,
             cost,
             defaultToken,
             { from: accounts[1] },
@@ -421,42 +495,42 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('gas', async () => {
-        await this.simplePlacements.allowGasPayments(true);
+        await this.proxy.allowGasPayments(true);
 
-        await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+        await this.proxy.place(defaultToken, constants.ZERO_ADDRESS, cost);
 
-        await this.simplePlacements.allowGasPayments(false);
+        await this.proxy.allowGasPayments(false);
 
         await expectRevert(
-          this.simplePlacements.buy(defaultToken, { from: accounts[1], value: cost }),
+          this.proxy.buy(defaultToken, { from: accounts[1], value: cost }),
           'Wrong purchase method.',
         );
       });
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc677.address, false, false, true,
           );
         });
 
         it('approve + buy', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
 
-          await this.erc677.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc677.approve(this.proxy.address, cost, { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
             'Wrong purchase method.',
           );
         });
 
         it('transferAndCall', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
 
           await expectRevert(
             this.erc677.transferAndCall(
-              this.simplePlacements.address,
+              this.proxy.address,
               cost,
               defaultToken,
               { from: accounts[1] },
@@ -468,28 +542,28 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc777.address, false, true, false,
           );
         });
 
         it('approve + buy', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
 
-          await this.erc777.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc777.approve(this.proxy.address, cost, { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
             'Wrong purchase method.',
           );
         });
 
         it('send', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
 
           await expectRevert(
             this.erc777.send(
-              this.simplePlacements.address,
+              this.proxy.address,
               cost,
               defaultToken,
               { from: accounts[1] },
@@ -509,63 +583,63 @@ contract('ERC721 Simple Placements', (accounts) => {
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc20.address, true, false, false,
         );
 
-        await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+        await this.erc20.approve(this.proxy.address, cost, { from: accounts[1] });
 
         await expectRevert(
-          this.simplePlacements.buy(notPlaced, { from: accounts[1] }),
+          this.proxy.buy(notPlaced, { from: accounts[1] }),
           'Token not placed.',
         );
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc677.address, false, true, false,
         );
 
         await expectRevert(
           this.erc677.transferAndCall(
-            this.simplePlacements.address, cost, notPlaced, { from: accounts[1] },
+            this.proxy.address, cost, notPlaced, { from: accounts[1] },
           ),
           'Token not placed.',
         );
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc777.address, false, false, true,
         );
 
         await expectRevert(
-          this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+          this.erc777.send(this.proxy.address, cost, notPlaced, { from: accounts[1] }),
           'Token not placed.',
         );
       });
 
       it('gas', async () => {
-        await this.simplePlacements.allowGasPayments(true);
+        await this.proxy.allowGasPayments(true);
 
         await expectRevert(
-          this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+          this.erc777.send(this.proxy.address, cost, notPlaced, { from: accounts[1] }),
           'Token not placed.',
         );
       });
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc677.address, true, true, false,
           );
         });
 
         it('approve + buy', async () => {
-          await this.erc677.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc677.approve(this.proxy.address, cost, { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(notPlaced, { from: accounts[1] }),
+            this.proxy.buy(notPlaced, { from: accounts[1] }),
             'Token not placed.',
           );
         });
@@ -573,7 +647,7 @@ contract('ERC721 Simple Placements', (accounts) => {
         it('transferAndCall', async () => {
           await expectRevert(
             this.erc677.transferAndCall(
-              this.simplePlacements.address, cost, notPlaced, { from: accounts[1] },
+              this.proxy.address, cost, notPlaced, { from: accounts[1] },
             ),
             'Token not placed.',
           );
@@ -582,23 +656,23 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc777.address, false, true, true,
           );
         });
 
         it('erc20 approve + transfer', async () => {
-          await this.erc777.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc777.approve(this.proxy.address, cost, { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(notPlaced, { from: accounts[1] }),
+            this.proxy.buy(notPlaced, { from: accounts[1] }),
             'Token not placed.',
           );
         });
 
         it('erc777 send', async () => {
           await expectRevert(
-            this.erc777.send(this.simplePlacements.address, cost, notPlaced, { from: accounts[1] }),
+            this.erc777.send(this.proxy.address, cost, notPlaced, { from: accounts[1] }),
             'Token not placed.',
           );
         });
@@ -611,30 +685,30 @@ contract('ERC721 Simple Placements', (accounts) => {
         const cost = web3.utils.toBN('1000000000000000000');
 
         beforeEach(async () => {
-          await this.token.approve(this.simplePlacements.address, defaultToken);
+          await this.token.approve(this.proxy.address, defaultToken);
         });
 
         it('erc20 approve + buy', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc20.address, true, false, false,
           );
 
-          await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+          await this.proxy.place(defaultToken, this.erc20.address, cost);
 
-          await this.erc20.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+          await this.erc20.approve(this.proxy.address, cost, { from: accounts[1] });
 
-          await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
+          await this.proxy.buy(defaultToken, { from: accounts[1] });
         });
 
         it('erc677 transferAndCall', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc677.address, false, true, false,
           );
 
-          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
 
           await this.erc677.transferAndCall(
-            this.simplePlacements.address,
+            this.proxy.address,
             cost,
             defaultToken,
             { from: accounts[1] },
@@ -642,14 +716,14 @@ contract('ERC721 Simple Placements', (accounts) => {
         });
 
         it('erc777 send', async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc777.address, false, false, true,
           );
 
-          await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
 
           await this.erc777.send(
-            this.simplePlacements.address,
+            this.proxy.address,
             cost,
             defaultToken,
             { from: accounts[1] },
@@ -657,33 +731,33 @@ contract('ERC721 Simple Placements', (accounts) => {
         });
 
         it('gas', async () => {
-          await this.simplePlacements.allowGasPayments(true);
+          await this.proxy.allowGasPayments(true);
 
-          await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+          await this.proxy.place(defaultToken, constants.ZERO_ADDRESS, cost);
 
-          await this.simplePlacements.buy(defaultToken, { from: accounts[1], value: cost });
+          await this.proxy.buy(defaultToken, { from: accounts[1], value: cost });
         });
 
         describe('erc20 + erc677', async () => {
           beforeEach(async () => {
-            await this.simplePlacements.setWhitelistedPaymentToken(
+            await this.proxy.setWhitelistedPaymentToken(
               this.erc677.address, true, true, false,
             );
           });
 
           it('erc20 approve + buy', async () => {
-            await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+            await this.proxy.place(defaultToken, this.erc677.address, cost);
 
-            await this.erc677.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+            await this.erc677.approve(this.proxy.address, cost, { from: accounts[1] });
 
-            await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
+            await this.proxy.buy(defaultToken, { from: accounts[1] });
           });
 
           it('erc677 transferAndCall', async () => {
-            await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+            await this.proxy.place(defaultToken, this.erc677.address, cost);
 
             await this.erc677.transferAndCall(
-              this.simplePlacements.address,
+              this.proxy.address,
               cost,
               defaultToken,
               { from: accounts[1] },
@@ -693,24 +767,24 @@ contract('ERC721 Simple Placements', (accounts) => {
 
         describe('erc20 + erc777', async () => {
           beforeEach(async () => {
-            await this.simplePlacements.setWhitelistedPaymentToken(
+            await this.proxy.setWhitelistedPaymentToken(
               this.erc777.address, true, false, true,
             );
           });
 
           it('erc20 approve + buy', async () => {
-            await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+            await this.proxy.place(defaultToken, this.erc777.address, cost);
 
-            await this.erc777.approve(this.simplePlacements.address, cost, { from: accounts[1] });
+            await this.erc777.approve(this.proxy.address, cost, { from: accounts[1] });
 
-            await this.simplePlacements.buy(defaultToken, { from: accounts[1] });
+            await this.proxy.buy(defaultToken, { from: accounts[1] });
           });
 
           it('erc777 send', async () => {
-            await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+            await this.proxy.place(defaultToken, this.erc777.address, cost);
 
             await this.erc777.send(
-              this.simplePlacements.address,
+              this.proxy.address,
               cost,
               defaultToken,
               { from: accounts[1] },
@@ -726,7 +800,7 @@ contract('ERC721 Simple Placements', (accounts) => {
           );
 
           await expectEvent.inLogs(
-            await this.simplePlacements.getPastEvents('allEvents'),
+            await this.proxy.getPastEvents('allEvents'),
             'TokenSold',
             {
               tokenId: web3.utils.toBN(defaultToken),
@@ -734,7 +808,7 @@ contract('ERC721 Simple Placements', (accounts) => {
           );
 
           await expectRevert(
-            this.simplePlacements.placement(defaultToken),
+            this.proxy.placement(defaultToken),
             'Token not placed.',
           );
         });
@@ -745,84 +819,84 @@ contract('ERC721 Simple Placements', (accounts) => {
       const cost = web3.utils.toBN('2000000000000000000');
 
       beforeEach(async () => {
-        await this.token.approve(this.simplePlacements.address, defaultToken);
+        await this.token.approve(this.proxy.address, defaultToken);
       });
 
       it('erc20 approve + buy', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc20.address, true, false, false,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc20.address, cost);
+        await this.proxy.place(defaultToken, this.erc20.address, cost);
 
-        await this.erc677.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+        await this.erc677.approve(this.proxy.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
         await expectRevert(
-          this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+          this.proxy.buy(defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds allowance -- Reason given: ERC20: transfer amount exceeds allowance.',
         );
       });
 
       it('erc677 transferAndCall', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc677.address, false, true, false,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+        await this.proxy.place(defaultToken, this.erc677.address, cost);
 
         await expectRevert(
-          this.erc677.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+          this.erc677.transferAndCall(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
         );
       });
 
       it('erc777 send', async () => {
-        await this.simplePlacements.setWhitelistedPaymentToken(
+        await this.proxy.setWhitelistedPaymentToken(
           this.erc777.address, false, false, true,
         );
 
-        await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+        await this.proxy.place(defaultToken, this.erc777.address, cost);
 
         await expectRevert(
-          this.erc777.send(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+          this.erc777.send(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
           'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
         );
       });
 
       it('gas', async () => {
-        await this.simplePlacements.allowGasPayments(true);
+        await this.proxy.allowGasPayments(true);
 
-        await this.simplePlacements.place(defaultToken, constants.ZERO_ADDRESS, cost);
+        await this.proxy.place(defaultToken, constants.ZERO_ADDRESS, cost);
 
         await expectRevert(
-          this.simplePlacements.buy(defaultToken, { from: accounts[1], value: web3.utils.toBN('1000000000000000000') }),
+          this.proxy.buy(defaultToken, { from: accounts[1], value: web3.utils.toBN('1000000000000000000') }),
           'Transfer amount is not enough.',
         );
       });
 
       describe('erc20 + erc677', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc677.address, true, true, false,
           );
         });
 
         it('erc20 approve + buy', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
 
-          await this.erc677.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+          await this.erc677.approve(this.proxy.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
             'ERC20: transfer amount exceeds allowance -- Reason given: ERC20: transfer amount exceeds allowance.',
           );
         });
 
         it('erc677 transferAndCall', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
 
           await expectRevert(
-            this.erc677.transferAndCall(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+            this.erc677.transferAndCall(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
             'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
           );
         });
@@ -830,27 +904,27 @@ contract('ERC721 Simple Placements', (accounts) => {
 
       describe('erc20 + erc777', async () => {
         beforeEach(async () => {
-          await this.simplePlacements.setWhitelistedPaymentToken(
+          await this.proxy.setWhitelistedPaymentToken(
             this.erc777.address, true, false, true,
           );
         });
 
         it('erc20 approve + buy', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
 
-          await this.erc777.approve(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
+          await this.erc777.approve(this.proxy.address, web3.utils.toBN('1000000000000000000'), { from: accounts[1] });
 
           await expectRevert(
-            this.simplePlacements.buy(defaultToken, { from: accounts[1] }),
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
             'ERC777: transfer amount exceeds allowance -- Reason given: ERC777: transfer amount exceeds allowance.',
           );
         });
 
         it('erc777 send', async () => {
-          await this.simplePlacements.place(defaultToken, this.erc777.address, cost);
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
 
           await expectRevert(
-            this.erc777.send(this.simplePlacements.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
+            this.erc777.send(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
             'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
           );
         });
@@ -871,32 +945,32 @@ contract('ERC721 Simple Placements', (accounts) => {
 
     beforeEach(async () => {
       await this.token.approve(
-        this.simplePlacements.address, defaultToken,
+        this.proxy.address, defaultToken,
       );
     });
 
     it('erc677 tokeFallback', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, true, false,
       );
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
       await expectRevert(
-        this.simplePlacements.tokenFallback(accounts[1], cost, defaultToken),
+        this.proxy.tokenFallback(accounts[1], cost, defaultToken),
         'Only from payment token.',
       );
     });
 
     it('erc777 tokensReceived', async () => {
-      await this.simplePlacements.setWhitelistedPaymentToken(
+      await this.proxy.setWhitelistedPaymentToken(
         this.erc677.address, false, false, true,
       );
 
-      await this.simplePlacements.place(defaultToken, this.erc677.address, cost);
+      await this.proxy.place(defaultToken, this.erc677.address, cost);
 
       await expectRevert(
-        this.simplePlacements.tokensReceived(
+        this.proxy.tokensReceived(
           constants.ZERO_ADDRESS,
           accounts[1],
           constants.ZERO_ADDRESS,
