@@ -3,6 +3,14 @@
 [![npm](https://img.shields.io/npm/v/@rsksmart/rif-marketplace-nfts)](https://www.npmjs.com/package/@rsksmart/rif-marketplace-nfts)
 [![CircleCI](https://circleci.com/gh/rsksmart/rif-marketplace-nfts.svg?style=shield)](https://circleci.com/gh/rsksmart/rif-marketplace-nfts)
 
+Smart Contract designed to support the buying and selling of NFT tokens using multiple payment options. Used by the **RIF Marketplace** for the Buying/Selling of **RNS Domains**. 
+
+**RIF Name Service (RNS)** enables the use of human readable names for blockchain addresses helping users to receive transactions in personalized domains. New RNS Domains can be obtained through the [RNS Manager]("https://manager.rns.rifos.org/").
+
+This contract allows users to list an NFT token for a fixed price in multiple payment methods (ERC-20, ERC-677, ERC-777, and R-BTC). The contract acts as an  <b>escrow</b>, ensuring the NFT is released only when a <b>valid payment</b> is received, allowing the seller to keep control at all times.
+  
+## Usage 
+
 ```
 npm i @rsksmart/rif-marketplace-nfts
 ```
@@ -21,7 +29,7 @@ npm run lint
 
 ## Contracts
 
-### Simple Placements
+### ERC721 Simple Placements
 
 Place an NFT for a fixed price.
 

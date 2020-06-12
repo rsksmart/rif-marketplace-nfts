@@ -1,19 +1,19 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "RIF NFTs marketplace.",
   "files": [
     "/contracts",
     "!/contracts/Migrations.sol",
     "/types",
-    "ERC721SimplePlacementsABI.json",
-    "ERC721SimplePlacementsBytecode.json"
+    "ERC721SimplePlacementsV1Data.json"
   ],
   "scripts": {
     "test": "npx truffle test",
     "lint": "npx eslint ./test",
     "prepublish": "npx truffle compile && node datagen.js && npm run types-generation",
-    "types-generation": "typechain --target=web3-v1 '*Data.json' && typechain --target=web3-v2 '*Data.json' && typechain --target=truffle '*Data.json' && typechain --target=ethers '*Data.json'"
+    "types-generation": "typechain --target=web3-v1 '*Data.json' && typechain --target=web3-v2 '*Data.json' && typechain --target=truffle '*Data.json' && typechain --target=ethers '*Data.json'",
+    "coverage": "npx truffle run coverage"
   },
   "repository": {
     "type": "git",
@@ -34,12 +34,14 @@
   "homepage": "https://github.com/rsksmart/rif-marketplace-poc#readme",
   "devDependencies": {
     "@openzeppelin/test-helpers": "0.5.4",
+    "@truffle/hdwallet-provider": "^1.0.35",
     "chai": "^4.2.0",
     "erc1820": "0.0.2",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.20.1",
     "eth-gas-reporter": "^0.2.15",
+    "solidity-coverage": "^0.7.7",
     "truffle": "^5.1.15",
     "typechain": "^1.0.5",
     "typechain-target-ethers": "^1.0.4",
@@ -49,6 +51,8 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.0",
+    "@openzeppelin/contracts-ethereum-package": "^2.2.3",
+    "@openzeppelin/upgrades": "^2.8.0",
     "@rsksmart/erc677": "^1.0.1",
     "solidity-bytes-utils": "0.0.8"
   }

@@ -1,24 +1,28 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.11;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@rsksmart/erc677/contracts/IERC677.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777.sol";
-
 import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/lifecycle/Pausable.sol";
 
-import "@openzeppelin/contracts/GSN/Context.sol";
-import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
+import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recipient, Ownable {
+ /**
+ * @title ERC721SimplePlacementsV1
+ * @dev An NFTS Exchange contract to buy and sell tokens on multiple currencies.
+ * This can be implemented using an openzeppelin/upgrades v2.8 proxy contract.
+ */
+contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC777Recipient, Ownable, Pausable {
     IERC1820Registry constant internal ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
 
-    IERC721 token;
+    IERC721 public token;
 
     using BytesLib for bytes;
 
@@ -52,18 +56,20 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         _;
     }
 
-    constructor(IERC721 _token) public {
+    function initialize(IERC721 _token, address owner) external initializer {
         token = _token;
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC20Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
+        Ownable.initialize(owner);
+        Pausable.initialize(owner);
     }
 
     /////////////////////////
     // Tokens whitelisting //
     /////////////////////////
 
-    function setWhitelistedPaymentToken(address paymentToken, bool isERC20, bool isERC677, bool isERC777) public onlyOwner {
+    function setWhitelistedPaymentToken(address paymentToken, bool isERC20, bool isERC677, bool isERC777) external onlyOwner {
         _whitelistedERC20[paymentToken] = isERC20;
         _whitelistedERC677[paymentToken] = isERC677;
         _whitelistedERC777[paymentToken] = isERC777;
@@ -71,7 +77,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         emit PaymentTokenWhitelistChanged(paymentToken, isERC20, isERC677, isERC777);
     }
 
-    function whitelistedPaymentToken(address paymentToken) public view returns (bool, bool, bool) {
+    function whitelistedPaymentToken(address paymentToken) external view returns (bool, bool, bool) {
         return (
             _whitelistedERC20[paymentToken],
             _whitelistedERC677[paymentToken],
@@ -79,7 +85,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         );
     }
 
-    function allowGasPayments(bool allowance) public onlyOwner {
+    function allowGasPayments(bool allowance) external onlyOwner {
         isGasPaymentAllowed = allowance;
     }
 
@@ -87,7 +93,7 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     // Placing //
     /////////////
 
-    function place(uint256 tokenId, address paymentToken, uint256 cost) external onlyWhitelistedPaymentTokens(paymentToken) {
+    function place(uint256 tokenId, address paymentToken, uint256 cost) external whenNotPaused onlyWhitelistedPaymentTokens(paymentToken) {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(cost > 0, "Cost should be greater than zero.");
        
@@ -120,46 +126,53 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
     ////////////
 
     // With ERC-20 or gas
-    function buy(uint256 tokenId) external payable {
+    function buy(uint256 tokenId) external payable whenNotPaused {
         Placement memory _placement = _getPlacement(tokenId);
 
         address payable owner = address(uint160(token.ownerOf(tokenId)));
 
+        // Check valid transaction
         if(_placement.paymentToken == address(0)) {
             require(isGasPaymentAllowed, "Wrong purchase method.");
-
             require(msg.value >= _placement.cost, "Transfer amount is not enough.");
-
-            owner.transfer(_placement.cost);
         } else {
             require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
+        }
 
-            require(
+        // Transfer to new owner
+        _transfer(owner, _msgSender(), tokenId);
+        
+        // Process Payment
+        if(_placement.paymentToken == address(0)) {
+            owner.transfer(_placement.cost);
+        } else {
+          require(
                 IERC20(_placement.paymentToken).transferFrom(_msgSender(), owner, _placement.cost),
                 "Payment token transfer error."
             );
         }
-
-        _afterBuyTransfer(owner, _msgSender(), tokenId);
     }
 
     // With ERC-677
-    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external returns (bool) {
+    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external whenNotPaused returns (bool) {
         uint256 tokenId = data.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
 
+        // Check valid transaction
         require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
         require(msg.sender == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
+        // Transfer to new owner
+        _transfer(owner, from, tokenId);
+
+        // Process payment
         require(
             IERC677(_placement.paymentToken).transfer(owner, _placement.cost),
             "Payment token transfer error."
         );
-
-        _afterBuyTransfer(owner, from, tokenId);
     }
 
     // With ERC-777
@@ -170,19 +183,22 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         uint256 /* amount */,
         bytes calldata userData,
         bytes calldata /* operatorData */
-    ) external {
+    ) external whenNotPaused {
         uint256 tokenId = userData.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
 
+        // Check valid transaction
         require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
         require(msg.sender == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
-        IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
+        // Transfer to new owner
+        _transfer(owner, from, tokenId);
 
-        _afterBuyTransfer(owner, from, tokenId);
+        // Process payment
+        IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
     }
 
     function _getPlacement(uint256 tokenId) private view returns(Placement memory _placement) {
@@ -196,10 +212,9 @@ contract ERC721SimplePlacements is Context, ERC677TransferReceiver, IERC777Recip
         _placement.cost = cost;
     }
 
-    function _afterBuyTransfer(address owner, address newOwner, uint256 tokenId) private {
-        token.transferFrom(owner, newOwner, tokenId);
+    function _transfer(address owner, address newOwner, uint256 tokenId) private {
         _setPlacement(tokenId, address(0), 0);
-        
         emit TokenSold(tokenId);
+        token.transferFrom(owner, newOwner, tokenId);
     }
 }

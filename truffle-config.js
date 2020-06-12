@@ -18,11 +18,15 @@
  *
  */
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
-// const infuraKey = "fj4jll3k.....";
-//
-// const fs = require('fs');
-// const mnemonic = fs.readFileSync(".secret").toString().trim();
+const fs = require('fs');
+const HDWalletProvider = require('@truffle/hdwallet-provider');
+
+ let mnemonic;
+ try {
+   mnemonic = fs.readFileSync('.secret').toString().trim();
+ } catch {
+   mnemonic = 'INVALID';
+ }
 
 module.exports = {
   /**
@@ -47,7 +51,17 @@ module.exports = {
     //  port: 8545,            // Standard Ethereum port (default: none)
     //  network_id: "*",       // Any network (default: none)
     // },
-
+    testnet: {
+      provider: () => new HDWalletProvider(mnemonic, `http://localhost:7777`, 0, 1, true, `m/44'/37310'/0'/0/`),
+      network_id: 31,
+      gasPrice: 600000000,
+    },
+    mainnet: {
+      provider: () => new HDWalletProvider(mnemonic, `http://localhost:4444`, 1, 1, true, `m/44'/137'/0'/0/`),
+      network_id: 30,
+      gasPrice: 60000000, 
+    }
+   
     // Another network with more advanced options...
     // advanced: {
       // port: 8777,             // Custom port
@@ -76,7 +90,7 @@ module.exports = {
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
   },
-
+  plugins: ["solidity-coverage"],
   // Set default mocha options here, use special reporters etc.
   mocha: {
     reporter: 'eth-gas-reporter',
