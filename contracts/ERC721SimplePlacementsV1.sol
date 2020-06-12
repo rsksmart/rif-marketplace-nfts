@@ -14,7 +14,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/lifecycle/Pausable.so
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
 
-
  /**
  * @title ERC721SimplePlacementsV1
  * @dev An NFTS Exchange contract to buy and sell tokens on multiple currencies.
@@ -70,7 +69,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     // Tokens whitelisting //
     /////////////////////////
 
-    function setWhitelistedPaymentToken(address paymentToken, bool isERC20, bool isERC677, bool isERC777) public onlyOwner {
+    function setWhitelistedPaymentToken(address paymentToken, bool isERC20, bool isERC677, bool isERC777) external onlyOwner {
         _whitelistedERC20[paymentToken] = isERC20;
         _whitelistedERC677[paymentToken] = isERC677;
         _whitelistedERC777[paymentToken] = isERC777;
@@ -78,7 +77,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         emit PaymentTokenWhitelistChanged(paymentToken, isERC20, isERC677, isERC777);
     }
 
-    function whitelistedPaymentToken(address paymentToken) public view returns (bool, bool, bool) {
+    function whitelistedPaymentToken(address paymentToken) external view returns (bool, bool, bool) {
         return (
             _whitelistedERC20[paymentToken],
             _whitelistedERC677[paymentToken],
@@ -86,7 +85,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         );
     }
 
-    function allowGasPayments(bool allowance) public onlyOwner {
+    function allowGasPayments(bool allowance) external onlyOwner {
         isGasPaymentAllowed = allowance;
     }
 
@@ -132,22 +131,26 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         address payable owner = address(uint160(token.ownerOf(tokenId)));
 
+        // Check valid transaction
         if(_placement.paymentToken == address(0)) {
             require(isGasPaymentAllowed, "Wrong purchase method.");
-
             require(msg.value >= _placement.cost, "Transfer amount is not enough.");
-
-            owner.transfer(_placement.cost);
         } else {
             require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
+        }
 
-            require(
+        // Transfer to new owner
+        _transfer(owner, _msgSender(), tokenId);
+        
+        // Process Payment
+        if(_placement.paymentToken == address(0)) {
+            owner.transfer(_placement.cost);
+        } else {
+          require(
                 IERC20(_placement.paymentToken).transferFrom(_msgSender(), owner, _placement.cost),
                 "Payment token transfer error."
             );
         }
-
-        _afterBuyTransfer(owner, _msgSender(), tokenId);
     }
 
     // With ERC-677
@@ -156,17 +159,20 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         Placement memory _placement = _getPlacement(tokenId);
 
+        // Check valid transaction
         require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
         require(msg.sender == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
+        // Transfer to new owner
+        _transfer(owner, from, tokenId);
+
+        // Process payment
         require(
             IERC677(_placement.paymentToken).transfer(owner, _placement.cost),
             "Payment token transfer error."
         );
-
-        _afterBuyTransfer(owner, from, tokenId);
     }
 
     // With ERC-777
@@ -182,14 +188,17 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         Placement memory _placement = _getPlacement(tokenId);
 
+        // Check valid transaction
         require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
         require(msg.sender == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
-        IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
+        // Transfer to new owner
+        _transfer(owner, from, tokenId);
 
-        _afterBuyTransfer(owner, from, tokenId);
+        // Process payment
+        IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
     }
 
     function _getPlacement(uint256 tokenId) private view returns(Placement memory _placement) {
@@ -203,10 +212,9 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         _placement.cost = cost;
     }
 
-    function _afterBuyTransfer(address owner, address newOwner, uint256 tokenId) private {
-        token.transferFrom(owner, newOwner, tokenId);
+    function _transfer(address owner, address newOwner, uint256 tokenId) private {
         _setPlacement(tokenId, address(0), 0);
-        
         emit TokenSold(tokenId);
+        token.transferFrom(owner, newOwner, tokenId);
     }
 }

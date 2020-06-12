@@ -29,7 +29,7 @@ contract ERC777Mintable is ERC777, MinterRole {
      *
      * - the caller must have the {MinterRole}.
      */
-    function mint(address account, uint256 amount) public onlyMinter returns (bool) {
+    function mint(address account, uint256 amount) external onlyMinter returns (bool) {
         _mint(account, account, amount, bytes(''), bytes(''));
         return true;
     }

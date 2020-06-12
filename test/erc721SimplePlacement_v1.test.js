@@ -96,10 +96,10 @@ contract('ERC721 Simple Placements V1', (accounts) => {
 
       const proxy = await DummyVersion.at(this.simplePlacementsAddress);
 
-      const newV = web3.utils.toBN('10');
-      await proxy.setV(newV);
-      const v = await proxy.v();
-      expect(v).to.be.bignumber.eq(newV);
+      const newValue = web3.utils.toBN('10');
+      await proxy.setValue(newValue);
+      const value = await proxy.value();
+      expect(value).to.be.bignumber.eq(newValue);
 
       expect(await proxy.isGasPaymentAllowed()).to.eq(false);
     });

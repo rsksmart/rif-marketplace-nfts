@@ -1,16 +1,40 @@
 const fs = require('fs');
-const simplePlacementsBuild = require('./build/contracts/ERC721SimplePlacementsV1');
+const addresses = require('./addresses');
+const simplePlacementsV1Build = require('./build/contracts/ERC721SimplePlacementsV1');
 
-fs.writeFileSync('./ERC721SimplePlacementsABI.json', JSON.stringify(simplePlacementsBuild.abi));
-fs.writeFileSync('./ERC721SimplePlacementsBytecode.json', JSON.stringify(simplePlacementsBuild.bytecode));
+const simplePlacementsV1BuildData = {
+    abi: simplePlacementsV1Build.abi,
+    bytecode: simplePlacementsV1Build.bytecode,
+    address: {
+      rskMainnet: addresses.ERC721SimplePlacementsV1.rskMainnet,
+      rskTestnet: addresses.ERC721SimplePlacementsV1.rskTestnet,
+    },
+  };
+
+fs.writeFileSync('./ERC721SimplePlacementsV1Data.json', JSON.stringify(simplePlacementsV1BuildData));
 
 const proxyAdminBuild = require('./build/contracts/ProxyAdmin');
 
-fs.writeFileSync('./ProxyAdminABI.json', JSON.stringify(proxyAdminBuild.abi));
-fs.writeFileSync('./ProxyAdminBytecode.json', JSON.stringify(proxyAdminBuild.bytecode));
+const proxyAdminBuildData = {
+  abi: proxyAdminBuild.abi,
+  bytecode: proxyAdminBuild.bytecode,
+  address: {
+    rskMainnet: addresses.ProxyFactory.rskMainnet,
+    rskTestnet: addresses.ProxyFactory.rskTestnet,
+  },
+};
+
+fs.writeFileSync('./ProxyAdminData.json', JSON.stringify(proxyAdminBuildData));
 
 const proxyFactoryBuild = require('./build/contracts/ProxyFactory');
 
-fs.writeFileSync('./ProxyFactoryABI.json', JSON.stringify(proxyFactoryBuild.abi));
-fs.writeFileSync('./ProxyFactoryBytecode.json', JSON.stringify(proxyFactoryBuild.bytecode));
+const proxyFactoryBuildData = {
+  abi: proxyFactoryBuild.abi,
+  bytecode: proxyFactoryBuild.bytecode,
+  address: {
+    rskMainnet: addresses.ProxyAdmin.rskMainnet,
+    rskTestnet: addresses.ProxyAdmin.rskTestnet,
+  },
+};
 
+fs.writeFileSync('./ProxyFactoryData.json', JSON.stringify(proxyFactoryBuildData));

@@ -1,13 +1,12 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "RIF NFTs marketplace.",
   "files": [
     "/contracts",
     "!/contracts/Migrations.sol",
     "/types",
-    "ERC721SimplePlacementsABI.json",
-    "ERC721SimplePlacementsBytecode.json"
+    "ERC721SimplePlacementsV1Data.json"
   ],
   "scripts": {
     "test": "npx truffle test",
