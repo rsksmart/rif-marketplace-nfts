@@ -375,6 +375,22 @@ contract('ERC721 Simple Placements V1', (accounts) => {
         },
       );
     });
+
+    it('should not allow to place if contract is paused', async () => {
+      await this.proxy.pause();
+
+      await this.token.approve(this.proxy.address, defaultToken);
+
+      await expectRevert(
+        this.proxy.place(defaultToken, this.erc677.address, 0),
+        'Pausable: paused -- Reason given: Pausable: paused.',
+      );
+
+      await expectRevert(
+        this.proxy.placement(defaultToken),
+        'Token not placed.',
+      );
+    });
   });
 
   describe('unplacing', async () => {
@@ -926,6 +942,156 @@ contract('ERC721 Simple Placements V1', (accounts) => {
           await expectRevert(
             this.erc777.send(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
             'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
+          );
+        });
+      });
+
+      afterEach(async () => {
+        expect(
+          await this.token.ownerOf(defaultToken),
+        ).to.be.eq(
+          accounts[0],
+        );
+      });
+    });
+
+    describe('should not allow to buy if contract is paused via', async () => {
+      const cost = web3.utils.toBN('1000000000000000000');
+
+      beforeEach(async () => {
+        await this.token.approve(this.proxy.address, defaultToken);
+      });
+
+      it('erc20 approve + buy', async () => {
+        await this.proxy.setWhitelistedPaymentToken(
+          this.erc20.address, true, false, false,
+        );
+
+        await this.proxy.place(defaultToken, this.erc20.address, cost);
+
+        await this.erc20.approve(this.proxy.address, cost, { from: accounts[1] });
+
+        await this.proxy.pause();
+
+        await expectRevert(
+          this.proxy.buy(defaultToken, { from: accounts[1] }),
+          'Pausable: paused -- Reason given: Pausable: paused.',
+        );
+      });
+
+      it('erc677 transferAndCall', async () => {
+        await this.proxy.setWhitelistedPaymentToken(
+          this.erc677.address, false, true, false,
+        );
+
+        await this.proxy.place(defaultToken, this.erc677.address, cost);
+
+        await this.proxy.pause();
+
+        await expectRevert(
+          this.erc677.transferAndCall(
+            this.proxy.address,
+            cost,
+            defaultToken,
+            { from: accounts[1] },
+          ),
+          'Pausable: paused -- Reason given: Pausable: paused.',
+        );
+      });
+
+      it('erc777 send', async () => {
+        await this.proxy.setWhitelistedPaymentToken(
+          this.erc777.address, false, false, true,
+        );
+
+        await this.proxy.place(defaultToken, this.erc777.address, cost);
+
+        await this.proxy.pause();
+
+        await expectRevert(
+          this.erc777.send(this.proxy.address, cost, defaultToken, { from: accounts[1] }),
+          'Pausable: paused -- Reason given: Pausable: paused.',
+        );
+      });
+
+      it('gas', async () => {
+        await this.proxy.allowGasPayments(true);
+
+        await this.proxy.place(defaultToken, constants.ZERO_ADDRESS, cost);
+
+        await this.proxy.pause();
+
+        await expectRevert(
+          this.proxy.buy(defaultToken, { from: accounts[1], value: cost }),
+          'Pausable: paused -- Reason given: Pausable: paused.',
+        );
+      });
+
+      describe('erc20 + erc677', async () => {
+        beforeEach(async () => {
+          await this.proxy.setWhitelistedPaymentToken(
+            this.erc677.address, true, true, false,
+          );
+        });
+
+        it('erc20 approve + buy', async () => {
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
+
+          await this.erc677.approve(this.proxy.address, cost, { from: accounts[1] });
+
+          await this.proxy.pause();
+
+          await expectRevert(
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
+            'Pausable: paused -- Reason given: Pausable: paused.',
+          );
+        });
+
+        it('erc677 transferAndCall', async () => {
+          await this.proxy.place(defaultToken, this.erc677.address, cost);
+
+          await this.proxy.pause();
+
+          await expectRevert(
+            this.erc677.transferAndCall(
+              this.proxy.address,
+              cost,
+              defaultToken,
+              { from: accounts[1] },
+            ),
+            'Pausable: paused -- Reason given: Pausable: paused.',
+          );
+        });
+      });
+
+      describe('erc20 + erc777', async () => {
+        beforeEach(async () => {
+          await this.proxy.setWhitelistedPaymentToken(
+            this.erc777.address, true, false, true,
+          );
+        });
+
+        it('erc20 approve + buy', async () => {
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
+
+          await this.erc777.approve(this.proxy.address, cost, { from: accounts[1] });
+
+          await this.proxy.pause();
+
+          await expectRevert(
+            this.proxy.buy(defaultToken, { from: accounts[1] }),
+            'Pausable: paused -- Reason given: Pausable: paused.',
+          );
+        });
+
+        it('erc777 send', async () => {
+          await this.proxy.place(defaultToken, this.erc777.address, cost);
+
+          await this.proxy.pause();
+
+          await expectRevert(
+            this.erc777.send(this.proxy.address, cost, defaultToken, { from: accounts[1] }),
+            'Pausable: paused -- Reason given: Pausable: paused.',
           );
         });
       });

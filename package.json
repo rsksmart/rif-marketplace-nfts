@@ -13,7 +13,8 @@
     "test": "npx truffle test",
     "lint": "npx eslint ./test",
     "prepublish": "npx truffle compile && node datagen.js && npm run types-generation",
-    "types-generation": "typechain --target=web3-v1 '*Data.json' && typechain --target=web3-v2 '*Data.json' && typechain --target=truffle '*Data.json' && typechain --target=ethers '*Data.json'"
+    "types-generation": "typechain --target=web3-v1 '*Data.json' && typechain --target=web3-v2 '*Data.json' && typechain --target=truffle '*Data.json' && typechain --target=ethers '*Data.json'",
+    "coverage": "npx truffle run coverage"
   },
   "repository": {
     "type": "git",

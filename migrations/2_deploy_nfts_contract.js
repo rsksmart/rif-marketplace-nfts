@@ -7,8 +7,8 @@ const assert = require('assert');
 
 const { encodeCall } = require('@openzeppelin/upgrades');
 
-//const RNS_TESTNET_MULTI_SIG = '0x0';
-//const RNS_MULTI_SIG = '0x0';
+//const RMKT_TESTNET_MULTI_SIG = '0x0';
+//const RMKT_MULTI_SIG = '0x0';
 
 module.exports = (deployer, network, accounts) => {
   if(network !== 'test') {
@@ -20,7 +20,13 @@ module.exports = (deployer, network, accounts) => {
         this.tokenAddress = '0xca0a477e19bac7e0e172ccfd2e3c28a7200bdb71';
       } 
 
-      const proxyFactory = await deployer.deploy(ProxyFactory);
+      let proxyFactory
+      if (network === 'develop') {
+        proxyFactory = await deployer.deploy(ProxyFactory);
+      } else if (network === 'testnet') {
+        proxyFactory = await ProxyFactory.at('0xbb71c17b28baf2b9e7f5b31660ecf758113b3fef');
+      }
+
       const proxyAdmin = await deployer.deploy(ProxyAdmin);
       const simplePlacementsV1 = await deployer.deploy(ERC721SimplePlacementsV1);
 
@@ -29,9 +35,9 @@ module.exports = (deployer, network, accounts) => {
       await proxyFactory.deploy(salt, simplePlacementsV1.address, proxyAdmin.address, data);
 
       /*if (network === 'testnet') {
-        await proxyAdmin.transferOwnership(RNS_TESTNET_MULTI_SIG);
+        await proxyAdmin.transferOwnership(RMKT_TESTNET_MULTI_SIG);
       } else if (network === 'mainnet') {
-        await proxyAdmin.transferOwnership(RNS_MULTI_SIG);
+        await proxyAdmin.transferOwnership(RMKT_MULTI_SIG);
       }*/
 
       const deploymentAddress = await proxyFactory.getDeploymentAddress(salt, accounts[0]);
@@ -42,9 +48,9 @@ module.exports = (deployer, network, accounts) => {
       const owner = await proxyAdmin.owner().then(r => r.toLowerCase());
 
       /*if (network === 'testnet') {
-        assert.equal(owner, RNS_TESTNET_MULTI_SIG);
+        assert.equal(owner, RMKT_TESTNET_MULTI_SIG);
       } else if (network === 'mainnet') {
-        assert.equal(owner, RNS_MULTI_SIG);
+        assert.equal(owner, RMKT_MULTI_SIG);
       }*/
 
       console.log('Proxy factory: ' + proxyFactory.address);

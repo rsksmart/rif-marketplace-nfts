@@ -9,6 +9,7 @@ import "@rsksmart/erc677/contracts/ERC677TransferReceiver.sol";
 import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/lifecycle/Pausable.sol";
 
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "@openzeppelin/upgrades/contracts/Initializable.sol";
@@ -19,7 +20,7 @@ import "@openzeppelin/upgrades/contracts/Initializable.sol";
  * @dev An NFTS Exchange contract to buy and sell tokens on multiple currencies.
  * This can be implemented using an openzeppelin/upgrades v2.8 proxy contract.
  */
-contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC777Recipient, Ownable {
+contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC777Recipient, Ownable, Pausable {
     IERC1820Registry constant internal ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
 
     IERC721 public token;
@@ -56,12 +57,13 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         _;
     }
 
-    function initialize(IERC721 _token, address sender) external initializer {
+    function initialize(IERC721 _token, address owner) external initializer {
         token = _token;
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC20Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
-        Ownable.initialize(sender);
+        Ownable.initialize(owner);
+        Pausable.initialize(owner);
     }
 
     /////////////////////////
@@ -92,7 +94,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     // Placing //
     /////////////
 
-    function place(uint256 tokenId, address paymentToken, uint256 cost) external onlyWhitelistedPaymentTokens(paymentToken) {
+    function place(uint256 tokenId, address paymentToken, uint256 cost) external whenNotPaused onlyWhitelistedPaymentTokens(paymentToken) {
         require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(cost > 0, "Cost should be greater than zero.");
        
@@ -125,7 +127,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     ////////////
 
     // With ERC-20 or gas
-    function buy(uint256 tokenId) external payable {
+    function buy(uint256 tokenId) external payable whenNotPaused {
         Placement memory _placement = _getPlacement(tokenId);
 
         address payable owner = address(uint160(token.ownerOf(tokenId)));
@@ -149,7 +151,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     }
 
     // With ERC-677
-    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external returns (bool) {
+    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external whenNotPaused returns (bool) {
         uint256 tokenId = data.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
@@ -175,7 +177,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         uint256 /* amount */,
         bytes calldata userData,
         bytes calldata /* operatorData */
-    ) external {
+    ) external whenNotPaused {
         uint256 tokenId = userData.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
