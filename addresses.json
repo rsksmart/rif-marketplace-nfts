@@ -1,14 +1,14 @@
 {
     "ProxyAdmin": {
-      "rskMainnet": "0x0000000000000000000000000000000000000000",
-      "rskTestnet": "0x0000000000000000000000000000000000000000"
+      "rskMainnet": "INVALID",
+      "rskTestnet": "INVALID"
     },
     "ProxyFactory": {
       "rskMainnet": "0x30569c0999f0c7fd7be9957ac4b4dee803cac293",
       "rskTestnet": "0xbb71c17b28baf2b9e7f5b31660ecf758113b3fef"
     },
     "ERC721SimplePlacementsV1": {
-      "rskMainnet": "0x0000000000000000000000000000000000000000",
-      "rskTestnet": "0x0000000000000000000000000000000000000000"
+      "rskMainnet": "INVALID",
+      "rskTestnet": "INVALID"
     }
   }
