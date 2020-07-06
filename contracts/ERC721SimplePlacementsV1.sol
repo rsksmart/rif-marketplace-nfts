@@ -58,8 +58,6 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
     function initialize(IERC721 _token, address owner) external initializer {
         token = _token;
-        ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777Token"), address(this));
-        ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC20Token"), address(this));
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
         Ownable.initialize(owner);
         Pausable.initialize(owner);
@@ -161,7 +159,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         // Check valid transaction
         require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
-        require(msg.sender == _placement.paymentToken, "Only from payment token.");
+        require(_msgSender() == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
@@ -190,7 +188,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         // Check valid transaction
         require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
-        require(msg.sender == _placement.paymentToken, "Only from payment token.");
+        require(_msgSender() == _placement.paymentToken, "Only from payment token.");
 
         address owner = token.ownerOf(tokenId);
 
