@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RIF NFTs marketplace.",
   "files": [
     "/contracts",
