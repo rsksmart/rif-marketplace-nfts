@@ -1,8 +1,9 @@
 const ERC721Mintable = artifacts.require('ERC721Mintable');
 const ProxyFactory = artifacts.require('ProxyFactory');
 const ProxyAdmin = artifacts.require('ProxyAdmin');
-const ERC721SimplePlacementsV1 = artifacts.require('ERC721SimplePlacementsV1');
-
+const ERC1820 = require('erc1820');
+const RNS = artifacts.require('RNS');
+const RNSSimplePlacementsV1 = artifacts.require('RNSSimplePlacementsV1');
 const assert = require('assert');
 
 const { encodeCall } = require('@openzeppelin/upgrades');
@@ -13,6 +14,11 @@ const { encodeCall } = require('@openzeppelin/upgrades');
 module.exports = (deployer, network, accounts) => {
   if(network !== 'test') {
     deployer.then(async () => {
+  
+      if (network === 'develop') {
+        await ERC1820.deploy(web3, accounts[0]);
+      }
+
       if (network === 'develop') {
         const nft = await deployer.deploy(ERC721Mintable);
         this.tokenAddress = nft.address;
@@ -20,6 +26,13 @@ module.exports = (deployer, network, accounts) => {
         this.tokenAddress = '0xca0a477e19bac7e0e172ccfd2e3c28a7200bdb71';
       } 
 
+      if (network === 'develop') {
+        const rns = await deployer.deploy(RNS);
+        this.rnsAddress = rns.address;
+      } else if (network === 'testnet') {
+        this.rnsAddress = '0x7d284aaac6e925aad802a53c0c69efe3764597b8';
+      } 
+     
       let proxyFactory
       if (network === 'develop') {
         proxyFactory = await deployer.deploy(ProxyFactory);
@@ -28,10 +41,10 @@ module.exports = (deployer, network, accounts) => {
       }
 
       const proxyAdmin = await deployer.deploy(ProxyAdmin);
-      const simplePlacementsV1 = await deployer.deploy(ERC721SimplePlacementsV1);
+      const simplePlacementsV1 = await deployer.deploy(RNSSimplePlacementsV1);
 
-      const salt = '16';
-      const data = encodeCall('initialize', ['address'], [this.tokenAddress]);
+      const salt = '20';
+      const data = encodeCall('initialize', ['address','address','address' ], [ this.tokenAddress, accounts[0], this.rnsAddress ]);
       await proxyFactory.deploy(salt, simplePlacementsV1.address, proxyAdmin.address, data);
 
       /*if (network === 'testnet') {
@@ -45,17 +58,18 @@ module.exports = (deployer, network, accounts) => {
 
       assert.equal(implementationAddress, simplePlacementsV1.address);
 
-      const owner = await proxyAdmin.owner().then(r => r.toLowerCase());
+      const owner = await proxyAdmin.owner();
 
-      /*if (network === 'testnet') {
-        assert.equal(owner, RMKT_TESTNET_MULTI_SIG);
+      if (network === 'testnet') {
+        assert.equal(owner, accounts[0]);
       } else if (network === 'mainnet') {
         assert.equal(owner, RMKT_MULTI_SIG);
-      }*/
+      }
 
       console.log('Proxy factory: ' + proxyFactory.address);
       console.log('Proxy admin: ' + proxyAdmin.address);
-      console.log('NFTS Contract implementation: ' + simplePlacementsV1.address);
+      console.log('Proxy owner: ' + owner);
+      console.log('RNS Contract implementation: ' + simplePlacementsV1.address);
       console.log('-------------');
       console.log('Resulting proxy deployment address: ' + deploymentAddress);
       console.log('Resulting querying implementation address: ' + implementationAddress);

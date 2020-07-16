@@ -10,6 +10,9 @@ import "@openzeppelin/contracts/access/roles/MinterRole.sol";
 import "@openzeppelin/upgrades/contracts/upgradeability/ProxyFactory.sol";
 import "@openzeppelin/upgrades/contracts/upgradeability/ProxyAdmin.sol";
 
+import "@rsksmart/rns-registry/contracts/RNS.sol";
+import "@rsksmart/rns-rskregistrar/contracts/RSKOwner.sol";
+
 /**
  * @dev Extension of {ERC777} that adds a set of accounts with the {MinterRole},
  * which have permission to mint (create) new tokens as they see fit.

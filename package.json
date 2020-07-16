@@ -1,12 +1,13 @@
 {
   "name": "@rsksmart/rif-marketplace-nfts",
-  "version": "0.1.1",
-  "description": "RIF NFTs marketplace.",
+  "version": "0.1.2",
+  "description": "RIF NFTs Marketplace",
   "files": [
     "/contracts",
     "!/contracts/Migrations.sol",
     "/types",
-    "ERC721SimplePlacementsV1Data.json"
+    "ERC721SimplePlacementsV1Data.json",
+    "RNSSimplePlacementsV1Data.json"
   ],
   "scripts": {
     "test": "npx truffle test",
@@ -40,6 +41,7 @@
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.20.1",
+    "eth-ens-namehash": "^2.0.8",
     "eth-gas-reporter": "^0.2.15",
     "solidity-coverage": "^0.7.7",
     "truffle": "^5.1.15",
@@ -54,6 +56,8 @@
     "@openzeppelin/contracts-ethereum-package": "^2.2.3",
     "@openzeppelin/upgrades": "^2.8.0",
     "@rsksmart/erc677": "^1.0.1",
+    "@rsksmart/rns-registry": "^1.0.4",
+    "@rsksmart/rns-rskregistrar": "^1.2.4",
     "solidity-bytes-utils": "0.0.8"
   }
 }

@@ -56,7 +56,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         _;
     }
 
-    function initialize(IERC721 _token, address owner) external initializer {
+    function initialize(IERC721 _token, address owner) public initializer {
         token = _token;
         ERC1820_REGISTRY.setInterfaceImplementer(address(this), keccak256("ERC777TokensRecipient"), address(this));
         Ownable.initialize(owner);
@@ -137,7 +137,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
             require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
         }
 
-        // Transfer to new owner
+        // Transfer token
         _transfer(owner, _msgSender(), tokenId);
         
         // Process Payment
@@ -163,7 +163,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         address owner = token.ownerOf(tokenId);
 
-        // Transfer to new owner
+        // Transfer token
         _transfer(owner, from, tokenId);
 
         // Process payment
@@ -192,14 +192,14 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         address owner = token.ownerOf(tokenId);
 
-        // Transfer to new owner
+        // Transfer token
         _transfer(owner, from, tokenId);
 
         // Process payment
         IERC777(_placement.paymentToken).send(owner, _placement.cost, bytes(''));
     }
 
-    function _getPlacement(uint256 tokenId) private view returns(Placement memory _placement) {
+    function _getPlacement(uint256 tokenId) internal view returns(Placement memory _placement) {
         _placement = _placements[tokenId];
         require(_placement.cost > 0, "Token not placed.");
     }
@@ -213,6 +213,13 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     function _transfer(address owner, address newOwner, uint256 tokenId) private {
         _setPlacement(tokenId, address(0), 0);
         emit TokenSold(tokenId);
+        _transferToNewOwner(owner, newOwner, tokenId);
+    }
+
+    //_transferToNewOwner: Tranfers the token to the new owner.
+    // This function may be overriden depending on the type of Token being transferred,
+    // which may require additional steps or specific actions.
+    function _transferToNewOwner(address owner, address newOwner, uint256 tokenId) internal {
         token.transferFrom(owner, newOwner, tokenId);
     }
 }
