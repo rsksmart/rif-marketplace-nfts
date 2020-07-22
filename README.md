@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@rsksmart/rif-marketplace-nfts)](https://www.npmjs.com/package/@rsksmart/rif-marketplace-nfts)
 [![CircleCI](https://circleci.com/gh/rsksmart/rif-marketplace-nfts.svg?style=shield)](https://circleci.com/gh/rsksmart/rif-marketplace-nfts)
 
-Smart Contract designed to support the buying and selling of NFT tokens using multiple payment options. Used by the **RIF Marketplace** for the Buying/Selling of **RNS Domains**. 
+Smart Contracts designed to support the buying and selling of NFT tokens using multiple payment options. A specific implementation for **RNS domains** has been included to be used by the **RIF Marketplace** . 
 
 **RIF Name Service (RNS)** enables the use of human readable names for blockchain addresses helping users to receive transactions in personalized domains. New RNS Domains can be obtained through the [RNS Manager]("https://manager.rns.rifos.org/").
 
@@ -70,6 +70,10 @@ Admin:
   - Set whitelisted tokens and their accepted methods with `setWhitelistedPaymentToken`
   - Change gas payment allowance with `allowGasPayments`
   - Set another owner with `transferOwnership`
+
+### RNS Simple Placements
+
+A specific implementation has been included for **RNS** which in addition to the basic features explained before it ensures to **clean up** the domain resolver and owner before transferring to the buyer.
 
 ## TypeScript typings
 

@@ -14,5 +14,4 @@ contract DummyVersion is ERC721SimplePlacementsV1 {
     function setValue(uint newValue) external {
         value = newValue;
     }
-
 }

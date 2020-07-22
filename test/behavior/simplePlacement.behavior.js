@@ -1,28 +1,34 @@
+const { constants, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
+const { expect } = require('chai');
+
 const BytesLib = artifacts.require('BytesLib');
-const ERC721Mintable = artifacts.require('ERC721Mintable');
 const ERC1820 = require('erc1820');
 
 const ERC20 = artifacts.require('ERC20Mintable');
 const ERC677 = artifacts.require('ERC677');
 const ERC777 = artifacts.require('ERC777Mintable');
 
-const ERC721SimplePlacementsV1 = artifacts.require('ERC721SimplePlacementsV1');
-
-const { expect } = require('chai');
-const { expectRevert, expectEvent, constants } = require('@openzeppelin/test-helpers');
-
 const { encodeCall } = require('@openzeppelin/upgrades');
 
 const ProxyFactory = artifacts.require('ProxyFactory');
 const ProxyAdmin = artifacts.require('ProxyAdmin');
+
 const DummyVersion = artifacts.require('DummyVersion');
 
-contract('ERC721 Simple Placements V1', (accounts) => {
-  const defaultToken = web3.utils.sha3('DEFAULT_TOKEN');
+function shouldBehaveLikeSimplePlacement(
+  SimplePlacementContract,
+  getDefaultToken,
+  setupToken,
+  getInitializeEncodedCall,
+  afterChecks,
+  getNotPlaced,
+  setupNotPlaced,
+  accounts,
+) {
+  const defaultToken = getDefaultToken();
 
   beforeEach(async () => {
-    this.token = await ERC721Mintable.new();
-    await this.token.mint(accounts[0], defaultToken);
+    this.token = await setupToken(defaultToken);
 
     await ERC1820.deploy(web3, accounts[0]);
 
@@ -41,21 +47,21 @@ contract('ERC721 Simple Placements V1', (accounts) => {
     await this.erc777.mint(accounts[1], web3.utils.toBN('1000000000000000000000'));
 
     const bytesLib = await BytesLib.new();
-    await ERC721SimplePlacementsV1.link('BytesLib', bytesLib.address);
+    await SimplePlacementContract.link('BytesLib', bytesLib.address);
 
     this.proxyFactory = await ProxyFactory.new();
     this.proxyAdmin = await ProxyAdmin.new();
-    this.simplePlacementsV1 = await ERC721SimplePlacementsV1.new();
+    this.simplePlacementsV1 = await SimplePlacementContract.new();
 
-    const salt = '16';
-    const data = encodeCall('initialize', ['address', 'address'], [this.token.address, accounts[0]]);
+    const salt = '20';
+    const data = getInitializeEncodedCall(this.token);
     await this.proxyFactory.deploy(salt,
       this.simplePlacementsV1.address,
       this.proxyAdmin.address,
       data);
 
     this.simplePlacementsAddress = await this.proxyFactory.getDeploymentAddress(salt, accounts[0]);
-    this.proxy = await ERC721SimplePlacementsV1.at(this.simplePlacementsAddress);
+    this.proxy = await SimplePlacementContract.at(this.simplePlacementsAddress);
   });
 
 
@@ -240,7 +246,7 @@ contract('ERC721 Simple Placements V1', (accounts) => {
     const cost = web3.utils.toBN('1000000000000000000');
 
     it('should revert when there is no placement for a token', async () => {
-      const notPlaced = web3.utils.sha3('NOT_PLACED');
+      const notPlaced = getNotPlaced();
 
       await expectRevert(
         this.proxy.placement(notPlaced),
@@ -591,11 +597,11 @@ contract('ERC721 Simple Placements V1', (accounts) => {
     });
 
     describe('should not allow to buy not placed token via', async () => {
-      const notPlaced = web3.utils.sha3('NOT_PLACED');
+      const notPlaced = getNotPlaced();
       const cost = web3.utils.toBN('1000000000000000000');
 
       beforeEach(async () => {
-        await this.token.mint(accounts[0], notPlaced);
+        await setupNotPlaced(notPlaced);
       });
 
       it('erc20 approve + buy', async () => {
@@ -827,6 +833,8 @@ contract('ERC721 Simple Placements V1', (accounts) => {
             this.proxy.placement(defaultToken),
             'Token not placed.',
           );
+
+          await afterChecks();
         });
       },
     );
@@ -1148,4 +1156,8 @@ contract('ERC721 Simple Placements V1', (accounts) => {
       );
     });
   });
-});
+}
+
+module.exports = {
+  shouldBehaveLikeSimplePlacement,
+};

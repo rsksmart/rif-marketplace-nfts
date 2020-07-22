@@ -10,5 +10,9 @@
     "ERC721SimplePlacementsV1": {
       "rskMainnet": "INVALID",
       "rskTestnet": "INVALID"
+    },
+    "RNSSimplePlacementsV1": {
+      "rskMainnet": "INVALID",
+      "rskTestnet": "INVALID"
     }
   }

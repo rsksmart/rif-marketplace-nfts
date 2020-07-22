@@ -13,6 +13,19 @@ const simplePlacementsV1BuildData = {
 
 fs.writeFileSync('./ERC721SimplePlacementsV1Data.json', JSON.stringify(simplePlacementsV1BuildData));
 
+const rnsSimplePlacementsV1Build = require('./build/contracts/RNSSimplePlacementsV1');
+
+const rnsSimplePlacementsV1BuildData = {
+    abi: rnsSimplePlacementsV1Build.abi,
+    bytecode: rnsSimplePlacementsV1Build.bytecode,
+    address: {
+      rskMainnet: addresses.RNSSimplePlacementsV1.rskMainnet,
+      rskTestnet: addresses.RNSSimplePlacementsV1.rskTestnet,
+    },
+  };
+
+fs.writeFileSync('./RNSSimplePlacementsV1Data.json', JSON.stringify(rnsSimplePlacementsV1BuildData));
+
 const proxyAdminBuild = require('./build/contracts/ProxyAdmin');
 
 const proxyAdminBuildData = {
