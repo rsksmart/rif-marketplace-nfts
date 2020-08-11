@@ -64,7 +64,6 @@ function shouldBehaveLikeSimplePlacement(
     this.proxy = await SimplePlacementContract.at(this.simplePlacementsAddress);
   });
 
-
   describe('upgrades', async () => {
     it('should use given implementation', async () => {
       const implAddr = await this.proxyAdmin.getProxyImplementation(this.simplePlacementsAddress);
@@ -826,6 +825,7 @@ function shouldBehaveLikeSimplePlacement(
             'TokenSold',
             {
               tokenId: web3.utils.toBN(defaultToken),
+              newOwner: accounts[1],
             },
           );
 
@@ -870,7 +870,7 @@ function shouldBehaveLikeSimplePlacement(
 
         await expectRevert(
           this.erc677.transferAndCall(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
-          'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
+          'Transfer amount is not correct.',
         );
       });
 
@@ -883,7 +883,7 @@ function shouldBehaveLikeSimplePlacement(
 
         await expectRevert(
           this.erc777.send(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
-          'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
+          'Transfer amount is not correct.',
         );
       });
 
@@ -894,7 +894,7 @@ function shouldBehaveLikeSimplePlacement(
 
         await expectRevert(
           this.proxy.buy(defaultToken, { from: accounts[1], value: web3.utils.toBN('1000000000000000000') }),
-          'Transfer amount is not enough.',
+          'Transfer amount is not correct.',
         );
       });
 
@@ -921,7 +921,7 @@ function shouldBehaveLikeSimplePlacement(
 
           await expectRevert(
             this.erc677.transferAndCall(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
-            'ERC20: transfer amount exceeds balance -- Reason given: ERC20: transfer amount exceeds balance.',
+            'Transfer amount is not correct.',
           );
         });
       });
@@ -949,7 +949,7 @@ function shouldBehaveLikeSimplePlacement(
 
           await expectRevert(
             this.erc777.send(this.proxy.address, web3.utils.toBN('1000000000000000000'), defaultToken, { from: accounts[1] }),
-            'ERC777: transfer amount exceeds balance -- Reason given: ERC777: transfer amount exceeds balance.',
+            'Transfer amount is not correct.',
           );
         });
       });
