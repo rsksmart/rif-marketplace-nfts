@@ -1,4 +1,4 @@
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
@@ -130,6 +130,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         address payable owner = address(uint160(token.ownerOf(tokenId)));
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         if(_placement.paymentToken == address(0)) {
             require(isGasPaymentAllowed, "Wrong purchase method.");
             require(msg.value == _placement.cost, "Transfer amount is not correct.");
@@ -158,13 +159,14 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         Placement memory _placement = _getPlacement(tokenId);
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
         require(_msgSender() == _placement.paymentToken, "Only from payment token.");
         require(amount == _placement.cost, "Transfer amount is not correct.");
 
         address owner = token.ownerOf(tokenId);
 
-        // Transfer token
+        // Transfer tokenest
         _transfer(owner, from, tokenId);
 
         // Process payment
@@ -188,6 +190,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         Placement memory _placement = _getPlacement(tokenId);
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
         require(_msgSender() == _placement.paymentToken, "Only from payment token.");
         require(amount == _placement.cost, "Transfer amount is not correct.");
