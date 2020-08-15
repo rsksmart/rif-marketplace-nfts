@@ -166,7 +166,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
         address owner = token.ownerOf(tokenId);
 
-        // Transfer tokenest
+        // Transfer token
         _transfer(owner, from, tokenId);
 
         // Process payment
