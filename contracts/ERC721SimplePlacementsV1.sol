@@ -1,4 +1,4 @@
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
@@ -34,7 +34,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     event PaymentTokenWhitelistChanged(address indexed paymentToken, bool isERC20, bool isERC677, bool isERC777);
     event TokenPlaced(uint256 indexed tokenId, address indexed paymentToken, uint256 cost);
     event TokenUnplaced(uint256 indexed tokenId);
-    event TokenSold(uint256 indexed tokenId);
+    event TokenSold(uint256 indexed tokenId, address indexed newOwner);
 
     mapping (address => bool) private _whitelistedERC20;
     mapping (address => bool) private _whitelistedERC677;
@@ -130,9 +130,10 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         address payable owner = address(uint160(token.ownerOf(tokenId)));
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         if(_placement.paymentToken == address(0)) {
             require(isGasPaymentAllowed, "Wrong purchase method.");
-            require(msg.value >= _placement.cost, "Transfer amount is not enough.");
+            require(msg.value == _placement.cost, "Transfer amount is not correct.");
         } else {
             require(_whitelistedERC20[_placement.paymentToken], "Wrong purchase method.");
         }
@@ -152,14 +153,16 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
     }
 
     // With ERC-677
-    function tokenFallback(address from, uint256 /* amount */, bytes calldata data) external whenNotPaused returns (bool) {
+    function tokenFallback(address from, uint256 amount, bytes calldata data) external whenNotPaused returns (bool) {
         uint256 tokenId = data.toUint(0);
 
         Placement memory _placement = _getPlacement(tokenId);
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(_whitelistedERC677[_placement.paymentToken], "Wrong purchase method.");
         require(_msgSender() == _placement.paymentToken, "Only from payment token.");
+        require(amount == _placement.cost, "Transfer amount is not correct.");
 
         address owner = token.ownerOf(tokenId);
 
@@ -178,7 +181,7 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         address /* operator */,
         address from,
         address /* to */,
-        uint256 /* amount */,
+        uint256 amount,
         bytes calldata userData,
         bytes calldata /* operatorData */
     ) external whenNotPaused {
@@ -187,8 +190,10 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
         Placement memory _placement = _getPlacement(tokenId);
 
         // Check valid transaction
+        require(token.getApproved(tokenId) == address(this), "Not approved to transfer.");
         require(_whitelistedERC777[_placement.paymentToken], "Wrong purchase method.");
         require(_msgSender() == _placement.paymentToken, "Only from payment token.");
+        require(amount == _placement.cost, "Transfer amount is not correct.");
 
         address owner = token.ownerOf(tokenId);
 
@@ -212,14 +217,14 @@ contract ERC721SimplePlacementsV1 is Initializable, ERC677TransferReceiver, IERC
 
     function _transfer(address owner, address newOwner, uint256 tokenId) private {
         _setPlacement(tokenId, address(0), 0);
-        emit TokenSold(tokenId);
         _transferToNewOwner(owner, newOwner, tokenId);
+        emit TokenSold(tokenId, newOwner);
     }
 
     //_transferToNewOwner: Tranfers the token to the new owner.
     // This function may be overriden depending on the type of Token being transferred,
     // which may require additional steps or specific actions.
     function _transferToNewOwner(address owner, address newOwner, uint256 tokenId) internal {
-        token.transferFrom(owner, newOwner, tokenId);
+        token.safeTransferFrom(owner, newOwner, tokenId);
     }
 }
