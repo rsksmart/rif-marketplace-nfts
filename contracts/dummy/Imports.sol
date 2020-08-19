@@ -14,7 +14,6 @@ import "@rsksmart/rns-registry/contracts/RNS.sol";
 import "@rsksmart/rns-rskregistrar/contracts/RSKOwner.sol";
 import "@rsksmart/rns-resolver/contracts/ResolverV1.sol";
 
-
 /**
  * @dev Extension of {ERC777} that adds a set of accounts with the {MinterRole},
  * which have permission to mint (create) new tokens as they see fit.

@@ -5,7 +5,6 @@ import "@rsksmart/rns-registry/contracts/AbstractRNS.sol";
 import "@rsksmart/rns-rskregistrar/contracts/AbstractNodeOwner.sol";
 import "@ensdomains/resolver/contracts/profiles/AddrResolver.sol";
 
-
  /**
  * @title RNSSimplePlacementsV1
  * @dev An RNS Domains Exchange contract to buy and sell tokens on multiple currencies.
