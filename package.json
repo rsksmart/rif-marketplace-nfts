@@ -57,6 +57,7 @@
     "@openzeppelin/upgrades": "^2.8.0",
     "@rsksmart/erc677": "^1.0.2",
     "@rsksmart/rns-registry": "^1.0.4",
+    "@rsksmart/rns-resolver": "^2.0.0",
     "@rsksmart/rns-rskregistrar": "^1.2.4",
     "solidity-bytes-utils": "0.0.9"
   }
