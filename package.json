@@ -52,7 +52,7 @@
     "typechain-target-web3-v2": "^1.0.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^2.5.1",
+    "@openzeppelin/contracts": "^4.4.2",
     "@openzeppelin/contracts-ethereum-package": "^2.2.3",
     "@openzeppelin/upgrades": "^2.8.0",
     "@rsksmart/erc677": "^1.0.2",
